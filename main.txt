@@ -1,37 +1,39 @@
-# Projet GenericDAO - Résumé
+# Résumé du Projet GenericDAO
 
-## Description du projet
-GenericDAO est une implémentation générique du pattern DAO (Data Access Object) en Java. Ce projet fournit une couche d'abstraction pour les opérations de base de données, permettant une gestion simplifiée et standardisée des entités persistantes.
+## Description
+GenericDAO est une implémentation générique du pattern DAO (Data Access Object) en Java, conçue pour simplifier l'accès aux données dans les applications Java. Ce projet fournit une couche d'abstraction réutilisable pour les opérations CRUD (Create, Read, Update, Delete) sur différentes entités.
 
-## Objectifs principaux
+## Objectifs Principaux
 - Fournir une interface générique pour les opérations CRUD
 - Réduire la duplication de code dans les couches d'accès aux données
-- Faciliter la maintenance et l'évolution des accès aux données
-- Standardiser les opérations de persistance
+- Faciliter la maintenance et l'évolution des applications
+- Assurer une séparation claire des responsabilités
 
-## Structure du projet
+## Structure du Projet
 - src/
   - dao/
     - GenericDAO.java (Interface générique)
     - GenericDAOImpl.java (Implémentation de l'interface)
-  - utils/
-    - DatabaseConnection.java (Utilitaire de connexion)
-  - entities/
+  - model/
     - Entités métier
+  - util/
+    - Classes utilitaires et configuration
 
-## Technologies utilisées
+## Technologies Utilisées
 - Java
 - JDBC pour l'accès aux données
 - MySQL comme système de gestion de base de données
 - Maven pour la gestion des dépendances
 
-## Instructions d'utilisation
-1. Configuration de la base de données :
-   - Créer une base de données MySQL
-   - Configurer les paramètres de connexion
+## Instructions d'Utilisation
+1. Configurer la connexion à la base de données dans le fichier de configuration
+2. Créer une classe d'entité qui représente votre table
+3. Étendre GenericDAOImpl pour votre entité spécifique
+4. Utiliser les méthodes CRUD fournies :
+   - create()
+   - findById()
+   - findAll()
+   - update()
+   - delete()
 
-2. Intégration dans un projet :
-   - Étendre GenericDAO pour créer des DAOs spécifiques
-   - Implémenter les méthodes spécifiques si nécessaire
-
-3. Exemple d'utilisation :
+## Exemple d'Utilisation
