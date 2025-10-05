@@ -1,48 +1,37 @@
-# GenericDAO - Data Access Object Générique
+# Projet GenericDAO - Résumé
 
-## Description du Projet
-GenericDAO est une implémentation générique du pattern DAO (Data Access Object) en Java, conçue pour simplifier et standardiser l'accès aux données dans les applications Java. Ce projet fournit une couche d'abstraction réutilisable pour les opérations CRUD (Create, Read, Update, Delete) sur différentes entités.
+## Description du projet
+GenericDAO est une implémentation générique du pattern DAO (Data Access Object) en Java. Ce projet fournit une couche d'abstraction pour les opérations de base de données, permettant une gestion simplifiée et standardisée des entités persistantes.
 
-## Objectifs Principaux
+## Objectifs principaux
 - Fournir une interface générique pour les opérations CRUD
 - Réduire la duplication de code dans les couches d'accès aux données
-- Faciliter la maintenance et l'évolution des applications
-- Standardiser les méthodes d'accès aux données
+- Faciliter la maintenance et l'évolution des accès aux données
+- Standardiser les opérations de persistance
 
-## Structure du Projet
+## Structure du projet
 - src/
-  - main/
-    - java/
-      - dao/
-        - GenericDAO.java (Interface générique)
-        - GenericDAOImpl.java (Implémentation de l'interface)
-      - utils/
-        - HibernateUtil.java (Utilitaire de configuration Hibernate)
-      - entities/
-        - BaseEntity.java (Classe de base pour les entités)
+  - dao/
+    - GenericDAO.java (Interface générique)
+    - GenericDAOImpl.java (Implémentation de l'interface)
+  - utils/
+    - DatabaseConnection.java (Utilitaire de connexion)
+  - entities/
+    - Entités métier
 
-## Technologies Utilisées
-- Java 8+
-- Hibernate (ORM)
-- JPA (Java Persistence API)
-- Maven (Gestion des dépendances)
-- MySQL (Base de données)
+## Technologies utilisées
+- Java
+- JDBC pour l'accès aux données
+- MySQL comme système de gestion de base de données
+- Maven pour la gestion des dépendances
 
-## Instructions d'Utilisation
+## Instructions d'utilisation
+1. Configuration de la base de données :
+   - Créer une base de données MySQL
+   - Configurer les paramètres de connexion
 
-### Configuration
-1. Assurez-vous d'avoir Java 8+ et Maven installés
-2. Configurez votre base de données dans hibernate.cfg.xml
-3. Importez le projet dans votre IDE
+2. Intégration dans un projet :
+   - Étendre GenericDAO pour créer des DAOs spécifiques
+   - Implémenter les méthodes spécifiques si nécessaire
 
-### Utilisation Basique
-1. Créez une nouvelle entité qui étend BaseEntity
-2. Implémentez GenericDAO pour votre entité
-3. Utilisez les méthodes CRUD fournies :
-   - create(T entity)
-   - read(ID id)
-   - update(T entity)
-   - delete(T entity)
-   - findAll()
-
-### Exemple d'Utilisation
+3. Exemple d'utilisation :
