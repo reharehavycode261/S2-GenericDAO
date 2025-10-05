@@ -1,0 +1,38 @@
+# GenericDAO - Data Access Object Générique
+
+## Description du Projet
+GenericDAO est une implémentation générique du pattern DAO (Data Access Object) en Java, conçue pour simplifier l'accès aux données dans les applications Java. Ce projet fournit une couche d'abstraction réutilisable pour les opérations CRUD (Create, Read, Update, Delete) sur différentes entités.
+
+## Objectifs Principaux
+- Fournir une interface générique pour les opérations CRUD
+- Réduire la duplication de code dans les couches d'accès aux données
+- Faciliter la maintenance et l'évolution des applications
+- Promouvoir les bonnes pratiques de programmation
+
+## Structure du Projet
+- src/
+  - dao/
+    - GenericDAO.java (Interface générique)
+    - GenericDAOImpl.java (Implémentation de l'interface)
+  - model/
+    - BaseEntity.java (Classe de base pour les entités)
+  - util/
+    - HibernateUtil.java (Utilitaire de configuration Hibernate)
+
+## Technologies Utilisées
+- Java
+- Hibernate (Framework ORM)
+- JPA (Java Persistence API)
+- Maven (Gestion des dépendances)
+- PostgreSQL (Base de données)
+
+## Instructions d'Utilisation
+1. Configuration de la base de données:
+   - Créer une base de données PostgreSQL
+   - Configurer les paramètres de connexion dans hibernate.cfg.xml
+
+2. Intégration dans votre projet:
+   - Étendre BaseEntity pour vos classes modèles
+   - Utiliser GenericDAO pour les opérations CRUD
+
+3. Exemple d'utilisation:
