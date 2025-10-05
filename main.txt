@@ -1,0 +1,57 @@
+# Projet GenericDAO - Résumé
+
+## Description du projet
+GenericDAO est une implémentation du pattern DAO (Data Access Object) en Java qui fournit une interface générique pour les opérations CRUD (Create, Read, Update, Delete) sur différentes entités.
+
+## Objectifs principaux
+- Simplifier l'accès aux données avec une interface générique
+- Réduire la duplication de code pour les opérations CRUD
+- Fournir une solution réutilisable pour la persistance des données
+- Faciliter la maintenance et l'évolution du code
+
+## Technologies utilisées
+- Java
+- JPA (Java Persistence API)
+- Hibernate (comme implémentation JPA)
+- Maven (pour la gestion des dépendances)
+
+## Structure du projet
+Le projet est organisé selon une architecture standard avec :
+- Une interface GenericDAO définissant les opérations CRUD génériques
+- Une implémentation abstraite GenericDAOImpl
+- Des classes d'entités spécifiques
+- Des tests unitaires pour valider le fonctionnement
+
+## Instructions d'utilisation
+1. Créer une entité qui étend la classe de base
+2. Créer un DAO spécifique qui étend GenericDAOImpl
+3. Injecter et utiliser le DAO dans les services
+
+## Fonctionnalités principales
+- Opérations CRUD génériques
+- Gestion des transactions
+- Support des requêtes personnalisées
+- Pagination des résultats
+- Gestion des erreurs
+
+## Avantages
+- Réduction du code boilerplate
+- Standardisation des accès aux données
+- Facilité de maintenance
+- Extensibilité
+
+## Prérequis
+- Java 8 ou supérieur
+- Maven 3.x
+- Une base de données compatible
+
+## Configuration
+1. Ajouter les dépendances Maven nécessaires
+2. Configurer la connexion à la base de données
+3. Définir les propriétés JPA/Hibernate
+
+## Contribution
+Les contributions sont les bienvenues via pull requests. Assurez-vous de :
+- Suivre les conventions de code
+- Ajouter des tests unitaires
+- Documenter les changements
