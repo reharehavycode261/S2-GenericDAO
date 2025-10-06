@@ -1,0 +1,34 @@
+# Projet GenericDAO - Résumé
+
+## Description du Projet
+GenericDAO est une implémentation générique du pattern DAO (Data Access Object) en Java. Ce projet fournit une solution réutilisable pour l'accès aux données, permettant de standardiser les opérations CRUD (Create, Read, Update, Delete) pour différentes entités.
+
+## Objectifs Principaux
+- Fournir une interface générique pour les opérations CRUD
+- Réduire la duplication de code dans les couches d'accès aux données
+- Faciliter la maintenance et l'évolution du code
+- Assurer une meilleure séparation des préoccupations
+
+## Structure du Code
+Le projet est organisé selon la structure suivante :
+- src/
+  - dao/ : Contient les interfaces et implémentations DAO
+  - model/ : Classes modèles/entités
+  - util/ : Classes utilitaires et helpers
+
+## Technologies Utilisées
+- Java
+- JDBC pour l'accès aux données
+- MySQL comme système de gestion de base de données
+- Maven pour la gestion des dépendances
+
+## Instructions d'Utilisation
+1. Configuration de la base de données :
+   - Créer une base de données MySQL
+   - Configurer les paramètres de connexion
+
+2. Intégration dans un projet :
+   - Étendre GenericDAO pour créer des DAOs spécifiques
+   - Implémenter les méthodes spécifiques si nécessaire
+
+3. Exemple d'utilisation :
