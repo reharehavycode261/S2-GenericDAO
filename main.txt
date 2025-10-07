@@ -1,0 +1,16 @@
+# Résumé du Projet
+
+## But
+Ce projet vise à créer une structure de fichiers simple et efficace pour documenter les informations essentielles du projet.
+
+## Fonctionnalités Principales
+- Documentation claire et concise
+- Structure de fichiers minimaliste
+- Facilité d'accès aux informations
+
+## Structure
+Le projet utilise une architecture simple avec un fichier texte principal à la racine :
+- main.txt : Contient le résumé du projet et les informations essentielles
+
+## État Actuel
+Le projet est en phase initiale avec la mise en place de la documentation de base.
