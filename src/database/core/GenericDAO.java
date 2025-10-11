@@ -19,7 +19,7 @@ public abstract class GenericDAO<T> {
     protected abstract T createEntity(ResultSet rs) throws SQLException;
     
     public List<T> findAll() throws SQLException {
-        List<T> entities = new ArrayList<>();
+        List<T> results = new ArrayList<>();
         String query = "SELECT * FROM " + tableName;
         
         try (Connection conn = database.getConnection();
@@ -27,17 +27,39 @@ public abstract class GenericDAO<T> {
              ResultSet rs = stmt.executeQuery()) {
             
             while (rs.next()) {
-                entities.add(createEntity(rs));
+                results.add(createEntity(rs));
             }
         }
-        return entities;
+        
+        return results;
     }
 
+    /**
+     * Compte le nombre total d'enregistrements dans la table.
+     * 
+     * @return le nombre total d'enregistrements
+     * @throws SQLException si une erreur SQL survient
+     */
     public long count() throws SQLException {
-        String query = "SELECT COUNT(*) FROM " + tableName;
+        return count(null);
+    }
+
+    /**
+     * Compte le nombre d'enregistrements dans la table qui correspondent à une condition WHERE.
+     * 
+     * @param whereClause la clause WHERE SQL (sans le mot-clé "WHERE"), peut être null
+     * @return le nombre d'enregistrements correspondant aux critères
+     * @throws SQLException si une erreur SQL survient
+     */
+    public long count(String whereClause) throws SQLException {
+        StringBuilder query = new StringBuilder("SELECT COUNT(*) FROM ").append(tableName);
+        
+        if (whereClause != null && !whereClause.trim().isEmpty()) {
+            query.append(" WHERE ").append(whereClause);
+        }
         
         try (Connection conn = database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query);
+             PreparedStatement stmt = conn.prepareStatement(query.toString());
              ResultSet rs = stmt.executeQuery()) {
             
             if (rs.next()) {
