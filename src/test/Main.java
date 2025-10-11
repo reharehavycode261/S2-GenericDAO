@@ -2,57 +2,33 @@ package test;
 
 import database.core.Database;
 import database.core.GenericDAO;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import database.provider.PostgreSQL;
 
 public class Main {
-    
-    // Classe de test pour démontrer l'utilisation de count()
-    static class TestEntity {
-        private int id;
-        private String name;
-        
-        public TestEntity(int id, String name) {
-            this.id = id;
-            this.name = name;
-        }
-    }
-    
-    static class TestDAO extends GenericDAO<TestEntity> {
-        public TestDAO(Database database) {
-            super(database, "test_table");
-        }
-        
-        @Override
-        protected TestEntity createEntity(ResultSet rs) throws SQLException {
-            return new TestEntity(
-                rs.getInt("id"),
-                rs.getString("name")
-            );
-        }
-    }
-    
     public static void main(String[] args) {
         try {
-            // Initialiser la base de données (à adapter selon votre configuration)
-            Database db = new Database("jdbc:postgresql://localhost:5432/testdb", "user", "password");
+            // Test de la méthode count()
+            Database database = new PostgreSQL("jdbc:postgresql://localhost:5432/test", "postgres", "postgres");
             
-            TestDAO dao = new TestDAO(db);
+            // Test avec la table Student
+            GenericDAO<Student> studentDAO = new GenericDAO<>(database, "student", Student.class);
+            long studentCount = studentDAO.count();
+            System.out.println("Nombre total d'étudiants: " + studentCount);
             
-            // Test 1: Compter les enregistrements
-            long count = dao.count();
-            System.out.println("Nombre d'enregistrements: " + count);
+            // Test avec condition WHERE
+            long studentCountWithCondition = studentDAO.count("age > ?", 20);
+            System.out.println("Nombre d'étudiants de plus de 20 ans: " + studentCountWithCondition);
             
-            // Test 2: Vérifier la cohérence avec findAll()
-            int allRecords = dao.findAll().size();
-            System.out.println("Nombre d'enregistrements via findAll(): " + allRecords);
+            // Test avec la table Emp
+            GenericDAO<Emp> empDAO = new GenericDAO<>(database, "emp", Emp.class);
+            long empCount = empDAO.count();
+            System.out.println("Nombre total d'employés: " + empCount);
             
-            assert count == allRecords : "Le compte devrait être égal au nombre d'enregistrements retournés par findAll()";
+            // Test avec condition WHERE
+            long empCountWithCondition = empDAO.count("salary > ?", 50000);
+            System.out.println("Nombre d'employés avec un salaire > 50000: " + empCountWithCondition);
             
-            System.out.println("Tous les tests ont réussi!");
-            
-        } catch (SQLException e) {
-            System.err.println("Erreur lors des tests: " + e.getMessage());
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
