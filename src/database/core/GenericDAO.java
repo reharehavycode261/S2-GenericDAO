@@ -1,9 +1,7 @@
 package database.core;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.Map;
+import java.sql.*;
+import java.util.*;
 
 public class GenericDAO<T> {
     private final Connection connection;
@@ -13,36 +11,40 @@ public class GenericDAO<T> {
         this.connection = connection;
         this.tableName = tableName;
     }
-
+    
     // ... autres méthodes existantes ...
 
     /**
-     * Met à jour des champs spécifiques d'un enregistrement dans la table
+     * Met à jour les champs spécifiés d'un enregistrement dans la table.
      * @param id L'identifiant de l'enregistrement à mettre à jour
-     * @param fields Map contenant les noms des champs et leurs nouvelles valeurs
-     * @return Le nombre de lignes affectées par la mise à jour
+     * @param fieldsToUpdate Un map des colonnes à mettre à jour avec leurs nouvelles valeurs
      * @throws SQLException en cas d'erreur SQL
      */
-    public int updateFields(Object id, Map<String, Object> fields) throws SQLException {
-        if (fields == null || fields.isEmpty()) {
-            throw new IllegalArgumentException("La collection des champs ne doit pas être vide");
+    public void updateFields(int id, Map<String, Object> fieldsToUpdate) throws SQLException {
+        if (fieldsToUpdate == null || fieldsToUpdate.isEmpty()) {
+            throw new IllegalArgumentException("Aucun champ fourni pour la mise à jour.");
         }
-
-        StringBuilder sql = new StringBuilder("UPDATE " + tableName + " SET ");
-        fields.forEach((key, value) -> sql.append(key).append(" = ?, "));
-        sql.delete(sql.length() - 2, sql.length()); // Supprimer la dernière virgule
-        sql.append(" WHERE id = ?");
-
-        try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
-            int index = 1;
-            for (Object value : fields.values()) {
+        
+        StringBuilder query = new StringBuilder("UPDATE " + tableName + " SET ");
+        
+        int index = 0;
+        for (String column : fieldsToUpdate.keySet()) {
+            query.append(column).append(" = ?");
+            if (index < fieldsToUpdate.size() - 1) {
+                query.append(", ");
+            }
+            index++;
+        }
+        query.append(" WHERE id = ?");
+        
+        try (PreparedStatement stmt = connection.prepareStatement(query.toString())) {
+            index = 1;
+            for (Object value : fieldsToUpdate.values()) {
                 stmt.setObject(index++, value);
             }
-            stmt.setObject(index, id);
+            stmt.setInt(index, id);
 
-            return stmt.executeUpdate();
+            stmt.executeUpdate();
         }
     }
-
-    // ... reste du code existant ...
 }
