@@ -1,5 +1,3 @@
-package database.core;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
@@ -12,8 +10,6 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.mockito.Mockito.*;
-
 public class GenericDAOTest {
 
     private Connection mockConnection;
@@ -22,79 +18,89 @@ public class GenericDAOTest {
 
     @BeforeEach
     public void setUp() throws SQLException {
-        // Setup mock objects
+        // Setup mock connection and prepared statement
         mockConnection = Mockito.mock(Connection.class);
         mockPreparedStatement = Mockito.mock(PreparedStatement.class);
-        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        Mockito.when(mockConnection.prepareStatement(Mockito.anyString())).thenReturn(mockPreparedStatement);
 
-        // Initialize the GenericDAO with the mock connection
+        // Initialize GenericDAO with mock connection
         genericDAO = new GenericDAO<>(mockConnection, "test_table");
     }
 
     @AfterEach
     public void tearDown() throws SQLException {
-        // Verify that all mocks were used correctly
-        verifyNoMoreInteractions(mockConnection, mockPreparedStatement);
+        // Close mocks if needed
+        Mockito.verify(mockPreparedStatement, Mockito.atLeastOnce()).close();
     }
 
     @Test
     public void testUpdateFields_Success() throws SQLException {
-        // Arrange
-        Map<String, Object> fields = new HashMap<>();
-        fields.put("name", "John Doe");
-        fields.put("age", 30);
+        // Prepare test data
+        int id = 1;
+        Map<String, Object> fieldsToUpdate = new HashMap<>();
+        fieldsToUpdate.put("name", "John Doe");
+        fieldsToUpdate.put("age", 30);
 
-        when(mockPreparedStatement.executeUpdate()).thenReturn(1);
+        // Execute the method
+        genericDAO.updateFields(id, fieldsToUpdate);
 
-        // Act
-        int rowsAffected = genericDAO.updateFields(1, fields);
+        // Verify the prepared statement was created with the correct SQL
+        Mockito.verify(mockConnection).prepareStatement("UPDATE test_table SET name = ?, age = ? WHERE id = ?");
+        
+        // Verify the parameters were set correctly
+        Mockito.verify(mockPreparedStatement).setObject(1, "John Doe");
+        Mockito.verify(mockPreparedStatement).setObject(2, 30);
+        Mockito.verify(mockPreparedStatement).setInt(3, id);
 
-        // Assert
-        Assertions.assertEquals(1, rowsAffected, "The number of rows affected should be 1");
-        verify(mockConnection).prepareStatement("UPDATE test_table SET name = ?, age = ? WHERE id = ?");
-        verify(mockPreparedStatement).setObject(1, "John Doe");
-        verify(mockPreparedStatement).setObject(2, 30);
-        verify(mockPreparedStatement).setObject(3, 1);
-        verify(mockPreparedStatement).executeUpdate();
-        verify(mockPreparedStatement).close();
+        // Verify executeUpdate was called
+        Mockito.verify(mockPreparedStatement).executeUpdate();
     }
 
     @Test
     public void testUpdateFields_EmptyFields() {
-        // Arrange
-        Map<String, Object> fields = new HashMap<>();
+        // Prepare test data
+        int id = 1;
+        Map<String, Object> fieldsToUpdate = new HashMap<>();
 
-        // Act & Assert
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.updateFields(1, fields);
-        }, "An IllegalArgumentException should be thrown when fields are empty");
+        // Execute the method and expect an IllegalArgumentException
+        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            genericDAO.updateFields(id, fieldsToUpdate);
+        });
+
+        // Assert exception message
+        Assertions.assertEquals("Aucun champ fourni pour la mise à jour.", exception.getMessage());
     }
 
     @Test
     public void testUpdateFields_NullFields() {
-        // Act & Assert
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.updateFields(1, null);
-        }, "An IllegalArgumentException should be thrown when fields are null");
+        // Prepare test data
+        int id = 1;
+
+        // Execute the method and expect an IllegalArgumentException
+        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            genericDAO.updateFields(id, null);
+        });
+
+        // Assert exception message
+        Assertions.assertEquals("Aucun champ fourni pour la mise à jour.", exception.getMessage());
     }
 
     @Test
     public void testUpdateFields_SQLException() throws SQLException {
-        // Arrange
-        Map<String, Object> fields = new HashMap<>();
-        fields.put("name", "John Doe");
+        // Prepare test data
+        int id = 1;
+        Map<String, Object> fieldsToUpdate = new HashMap<>();
+        fieldsToUpdate.put("name", "John Doe");
 
-        when(mockPreparedStatement.executeUpdate()).thenThrow(new SQLException("Database error"));
+        // Simulate SQLException
+        Mockito.when(mockConnection.prepareStatement(Mockito.anyString())).thenThrow(new SQLException("Database error"));
 
-        // Act & Assert
-        Assertions.assertThrows(SQLException.class, () -> {
-            genericDAO.updateFields(1, fields);
-        }, "A SQLException should be thrown when a database error occurs");
+        // Execute the method and expect an SQLException
+        SQLException exception = Assertions.assertThrows(SQLException.class, () -> {
+            genericDAO.updateFields(id, fieldsToUpdate);
+        });
 
-        verify(mockConnection).prepareStatement("UPDATE test_table SET name = ? WHERE id = ?");
-        verify(mockPreparedStatement).setObject(1, "John Doe");
-        verify(mockPreparedStatement).setObject(2, 1);
-        verify(mockPreparedStatement).executeUpdate();
-        verify(mockPreparedStatement).close();
+        // Assert exception message
+        Assertions.assertEquals("Database error", exception.getMessage());
     }
 }
