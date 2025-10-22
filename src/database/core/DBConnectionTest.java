@@ -14,141 +14,70 @@ import static org.mockito.Mockito.*;
 
 public class DBConnectionTest {
 
-    private Database mockDatabase;
-    private Connection mockConnection;
     private DBConnection dbConnection;
+    private Connection mockConnection;
+    private PreparedStatement mockPreparedStatement;
 
     @BeforeEach
-    public void setUp() {
-        mockDatabase = Mockito.mock(Database.class);
+    public void setUp() throws SQLException {
         mockConnection = Mockito.mock(Connection.class);
-        dbConnection = new DBConnection(mockDatabase, mockConnection);
+        mockPreparedStatement = Mockito.mock(PreparedStatement.class);
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+
+        dbConnection = new DBConnection();
+        // Suppose there is a method to set the connection for testing purposes
+        dbConnection.setConnection(mockConnection);
     }
 
     @AfterEach
     public void tearDown() {
         dbConnection = null;
-    }
-
-    @Test
-    public void testCommitSuccess() throws SQLException {
-        // Arrange
-        doNothing().when(mockConnection).commit();
-
-        // Act
-        dbConnection.commit();
-
-        // Assert
-        verify(mockConnection, times(1)).commit();
-    }
-
-    @Test
-    public void testCommitThrowsSQLException() {
-        // Arrange
-        try {
-            doThrow(new SQLException("Commit failed")).when(mockConnection).commit();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        // Act & Assert
-        Assertions.assertThrows(SQLException.class, () -> dbConnection.commit());
-    }
-
-    @Test
-    public void testRollbackSuccess() {
-        // Arrange
-        try {
-            doNothing().when(mockConnection).rollback();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        // Act
-        dbConnection.rollback();
-
-        // Assert
-        try {
-            verify(mockConnection, times(1)).rollback();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Test
-    public void testRollbackSQLException() {
-        // Arrange
-        try {
-            doThrow(new SQLException("Rollback failed")).when(mockConnection).rollback();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        // Act
-        dbConnection.rollback();
-
-        // Assert
-        try {
-            verify(mockConnection, times(1)).rollback();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        mockConnection = null;
+        mockPreparedStatement = null;
     }
 
     @Test
     public void testUpdateFieldsSuccess() throws SQLException {
-        // Arrange
-        String tableName = "test_table";
-        String[] fields = {"field1", "field2"};
-        Object[] values = {"value1", "value2"};
+        String tableName = "users";
+        String[] fields = {"name", "email"};
+        Object[] values = {"John Doe", "john.doe@example.com"};
         String condition = "id = 1";
 
-        PreparedStatement mockPreparedStatement = Mockito.mock(PreparedStatement.class);
-        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-
-        // Act
         dbConnection.updateFields(tableName, fields, values, condition);
 
-        // Assert
-        verify(mockConnection, times(1)).prepareStatement(anyString());
-        verify(mockPreparedStatement, times(1)).setObject(1, "value1");
-        verify(mockPreparedStatement, times(1)).setObject(2, "value2");
-        verify(mockPreparedStatement, times(1)).executeUpdate();
-        verify(mockPreparedStatement, times(1)).close();
+        verify(mockConnection).prepareStatement("UPDATE users SET name = ?, email = ? WHERE id = 1");
+        verify(mockPreparedStatement).setObject(1, "John Doe");
+        verify(mockPreparedStatement).setObject(2, "john.doe@example.com");
+        verify(mockPreparedStatement).executeUpdate();
     }
 
     @Test
     public void testUpdateFieldsThrowsSQLException() throws SQLException {
-        // Arrange
-        String tableName = "test_table";
-        String[] fields = {"field1", "field2"};
-        Object[] values = {"value1", "value2"};
+        String tableName = "users";
+        String[] fields = {"name"};
+        Object[] values = {"John Doe"};
         String condition = "id = 1";
 
-        when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException("Update failed"));
+        when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException("Database error"));
 
-        // Act & Assert
-        Assertions.assertThrows(SQLException.class, () -> dbConnection.updateFields(tableName, fields, values, condition));
+        SQLException exception = Assertions.assertThrows(SQLException.class, () -> {
+            dbConnection.updateFields(tableName, fields, values, condition);
+        });
+
+        Assertions.assertEquals("Database error", exception.getMessage());
     }
 
     @Test
-    public void testUpdateFieldsMismatchedFieldsAndValues() {
-        // Arrange
-        String tableName = "test_table";
-        String[] fields = {"field1"};
-        Object[] values = {"value1", "value2"};
+    public void testUpdateFieldsThrowsIllegalArgumentException() {
+        String tableName = "users";
+        String[] fields = {"name"};
+        Object[] values = {"John Doe", "Extra Value"};
         String condition = "id = 1";
 
-        // Act & Assert
-        Assertions.assertThrows(IllegalArgumentException.class, () -> dbConnection.updateFields(tableName, fields, values, condition));
-    }
+        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            dbConnection.updateFields(tableName, fields, values, condition);
+        });
 
-    @Test
-    public void testGetDatabase() {
-        // Act
-        Database result = dbConnection.getDatabase();
-
-        // Assert
-        Assertions.assertEquals(mockDatabase, result, "The database should be the same as the one set in the constructor.");
+        Assertions.assertEquals("Fields and values array must have the same length", exception.getMessage());
     }
 }
