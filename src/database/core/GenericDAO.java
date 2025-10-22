@@ -1,53 +1,49 @@
 package database.core;
 
-import database.exception.SQL.AttributeMissingException;
-import database.exception.SQL.AttributeTypeNotExistingException;
-import database.exception.object.NotIdentifiedInDatabaseException;
-
-import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
-import java.util.List;
+import java.util.Map;
 
-public class GenericDAO {
-    String id;
-    Connection connection;  // Assuming we have a connection instance
+public class GenericDAO<T> {
+    private Connection connection;
+    private String tableName;
 
-    // ... code existant ...
-
+    public GenericDAO(Connection connection, String tableName) {
+        this.connection = connection;
+        this.tableName = tableName;
+    }
+    
     /**
-     * Met à jour certains champs d'un enregistrement dans la base de données.
-     * @param tableName Le nom de la table
-     * @param id L'identifiant de l'enregistrement à mettre à jour
-     * @param updates La liste des affectations de colonnes à mettre à jour
-     * @throws SQLException en cas d'erreur SQL
+     * Met à jour des champs spécifiques d'un enregistrement dans la base de données.
+     *
+     * @param id L'identifiant de l'enregistrement à mettre à jour.
+     * @param fields Une map contenant les noms des champs à mettre à jour et leurs nouvelles valeurs.
+     * @return true si l'enregistrement a été mis à jour avec succès, false sinon.
+     * @throws SQLException en cas d'erreur SQL.
+     * @throws IllegalArgumentException si la map des champs est null ou vide.
      */
-    public void updateFields(String tableName, String id, List<Affectation> updates) throws SQLException {
-        if (updates == null || updates.isEmpty()) {
-            throw new IllegalArgumentException("No fields to update.");
+    public boolean updateFields(Object id, Map<String, Object> fields) throws SQLException {
+        if (fields == null || fields.isEmpty()) {
+            throw new IllegalArgumentException("Fields map cannot be null or empty");
         }
 
         StringBuilder sql = new StringBuilder("UPDATE " + tableName + " SET ");
-        for (int i = 0; i < updates.size(); i++) {
-            Affectation affectation = updates.get(i);
-            sql.append(affectation.getColumn()).append(" = ?");
-            if (i < updates.size() - 1) {
-                sql.append(", ");
-            }
+        for (String field : fields.keySet()) {
+            sql.append(field).append(" = ?, ");
         }
+        sql.setLength(sql.length() - 2); // Supprimer la dernière virgule
         sql.append(" WHERE id = ?");
 
         try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
             int index = 1;
-            for (Affectation affectation : updates) {
-                stmt.setObject(index++, affectation.getValue());
+            for (Object value : fields.values()) {
+                stmt.setObject(index++, value);
             }
-            stmt.setString(index, id);
+            stmt.setObject(index, id);
 
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            throw new SQLException("Failed to update fields: " + e.getMessage(), e);
+            return stmt.executeUpdate() > 0;
         }
     }
 
-    // ... reste du code existant ...
+    // Autres méthodes existantes du GenericDAO...
+
 }
