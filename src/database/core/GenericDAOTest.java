@@ -1,8 +1,5 @@
 package database.core;
 
-import database.exception.SQL.AttributeMissingException;
-import database.exception.SQL.AttributeTypeNotExistingException;
-import database.exception.object.NotIdentifiedInDatabaseException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
@@ -12,92 +9,100 @@ import org.mockito.Mockito;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-class GenericDAOTest {
+public class GenericDAOTest {
 
-    private GenericDAO genericDAO;
     private Connection mockConnection;
     private PreparedStatement mockPreparedStatement;
+    private GenericDAO<Object> genericDAO;
 
     @BeforeEach
-    void setUp() throws SQLException {
+    public void setUp() throws SQLException {
         mockConnection = Mockito.mock(Connection.class);
         mockPreparedStatement = Mockito.mock(PreparedStatement.class);
-        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockConnection.prepareStatement(any(String.class))).thenReturn(mockPreparedStatement);
 
-        genericDAO = new GenericDAO();
-        genericDAO.connection = mockConnection;
+        genericDAO = new GenericDAO<>(mockConnection, "test_table");
     }
 
     @AfterEach
-    void tearDown() {
+    public void tearDown() {
+        mockConnection = null;
+        mockPreparedStatement = null;
         genericDAO = null;
     }
 
     @Test
-    void testUpdateFieldsSuccess() throws SQLException {
+    public void testUpdateFieldsSuccess() throws SQLException {
         // Arrange
-        String tableName = "test_table";
-        String id = "123";
-        List<Affectation> updates = new ArrayList<>();
-        updates.add(new Affectation("column1", "value1"));
-        updates.add(new Affectation("column2", "value2"));
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("name", "John Doe");
+        fields.put("age", 30);
+
+        when(mockPreparedStatement.executeUpdate()).thenReturn(1);
 
         // Act
-        genericDAO.updateFields(tableName, id, updates);
+        boolean result = genericDAO.updateFields(1, fields);
 
         // Assert
-        verify(mockPreparedStatement, times(1)).setObject(1, "value1");
-        verify(mockPreparedStatement, times(1)).setObject(2, "value2");
-        verify(mockPreparedStatement, times(1)).setString(3, id);
+        Assertions.assertTrue(result, "The record should be updated successfully");
+        verify(mockPreparedStatement, times(1)).setObject(eq(1), eq("John Doe"));
+        verify(mockPreparedStatement, times(1)).setObject(eq(2), eq(30));
+        verify(mockPreparedStatement, times(1)).setObject(eq(3), eq(1));
         verify(mockPreparedStatement, times(1)).executeUpdate();
     }
 
     @Test
-    void testUpdateFieldsEmptyUpdates() {
+    public void testUpdateFieldsNoUpdate() throws SQLException {
         // Arrange
-        String tableName = "test_table";
-        String id = "123";
-        List<Affectation> updates = new ArrayList<>();
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("name", "John Doe");
 
-        // Act & Assert
-        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.updateFields(tableName, id, updates);
-        });
-        Assertions.assertEquals("No fields to update.", exception.getMessage());
+        when(mockPreparedStatement.executeUpdate()).thenReturn(0);
+
+        // Act
+        boolean result = genericDAO.updateFields(1, fields);
+
+        // Assert
+        Assertions.assertFalse(result, "The record should not be updated");
     }
 
     @Test
-    void testUpdateFieldsNullUpdates() {
+    public void testUpdateFieldsEmptyFields() {
         // Arrange
-        String tableName = "test_table";
-        String id = "123";
+        Map<String, Object> fields = new HashMap<>();
 
         // Act & Assert
-        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.updateFields(tableName, id, null);
-        });
-        Assertions.assertEquals("No fields to update.", exception.getMessage());
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            genericDAO.updateFields(1, fields);
+        }, "An IllegalArgumentException should be thrown for empty fields map");
     }
 
     @Test
-    void testUpdateFieldsSQLException() throws SQLException {
-        // Arrange
-        String tableName = "test_table";
-        String id = "123";
-        List<Affectation> updates = new ArrayList<>();
-        updates.add(new Affectation("column1", "value1"));
+    public void testUpdateFieldsNullFields() {
+        // Act & Assert
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            genericDAO.updateFields(1, null);
+        }, "An IllegalArgumentException should be thrown for null fields map");
+    }
 
-        doThrow(new SQLException("SQL error")).when(mockPreparedStatement).executeUpdate();
+    @Test
+    public void testUpdateFieldsSQLException() throws SQLException {
+        // Arrange
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("name", "John Doe");
+
+        when(mockPreparedStatement.executeUpdate()).thenThrow(new SQLException("SQL Error"));
 
         // Act & Assert
-        SQLException exception = Assertions.assertThrows(SQLException.class, () -> {
-            genericDAO.updateFields(tableName, id, updates);
-        });
-        Assertions.assertEquals("Failed to update fields: SQL error", exception.getMessage());
+        Assertions.assertThrows(SQLException.class, () -> {
+            genericDAO.updateFields(1, fields);
+        }, "A SQLException should be thrown for SQL errors");
     }
 }
