@@ -1,46 +1,37 @@
 package test;
 
 import database.core.DBConnection;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
 
 public class DBConnectionTest {
-    @Mock
-    private Connection mockConnection;
-
-    @Mock
-    private PreparedStatement mockPreparedStatement;
-
     private DBConnection dbConnection;
 
-    @BeforeEach
+    @Before
     public void setUp() throws SQLException {
-        MockitoAnnotations.openMocks(this);
-        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-        dbConnection = new DBConnection(null, mockConnection);
+        Connection connection = DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
+        this.dbConnection = new DBConnection(connection);
+        // Setup initial test table
+        dbConnection.getConnection().createStatement().execute(
+            "CREATE TABLE test_table (id INT PRIMARY KEY, name VARCHAR(255), age INT)");
+        dbConnection.getConnection().createStatement().execute(
+            "INSERT INTO test_table (id, name, age) VALUES (1, 'John Doe', 30)");
     }
 
     @Test
     public void testUpdateFields() throws SQLException {
-        String[] fields = {"name", "age"};
-        Object[] values = {"John Doe", 30};
-        String condition = "id = 1";
+        dbConnection.updateFields("test_table", new String[]{"name", "age"}, new Object[]{"Jane Doe", 28}, "id = 1");
 
-        dbConnection.updateFields("users", fields, values, condition);
-
-        verify(mockConnection).prepareStatement(eq("UPDATE users SET name = ?, age = ? WHERE id = 1"));
-        verify(mockPreparedStatement).setObject(1, "John Doe");
-        verify(mockPreparedStatement).setObject(2, 30);
-        verify(mockPreparedStatement).executeUpdate();
+        var rs = dbConnection.getConnection().prepareStatement("SELECT name, age FROM test_table WHERE id = 1").executeQuery();
+        if (rs.next()) {
+            assertEquals("Jane Doe", rs.getString("name"));
+            assertEquals(28, rs.getInt("age"));
+        }
     }
 }
