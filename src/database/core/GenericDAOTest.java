@@ -8,6 +8,7 @@ import org.mockito.Mockito;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,14 +19,15 @@ public class GenericDAOTest {
 
     private Connection mockConnection;
     private PreparedStatement mockPreparedStatement;
+    private ResultSet mockResultSet;
     private GenericDAO<Object> genericDAO;
 
     @BeforeEach
     public void setUp() throws SQLException {
         mockConnection = Mockito.mock(Connection.class);
         mockPreparedStatement = Mockito.mock(PreparedStatement.class);
-        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-        genericDAO = new GenericDAO<>(mockConnection, "test_table");
+        mockResultSet = Mockito.mock(ResultSet.class);
+        genericDAO = new GenericDAO<>(mockConnection, "test_table", "id");
     }
 
     @AfterEach
@@ -34,80 +36,84 @@ public class GenericDAOTest {
     }
 
     @Test
-    public void testUpdateFieldsSuccess() throws SQLException {
-        Map<String, Object> fieldsToUpdate = new HashMap<>();
-        fieldsToUpdate.put("name", "John Doe");
-        fieldsToUpdate.put("age", 30);
+    public void testFindByIdReturnsObjectWhenExists() throws SQLException {
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true);
 
-        String whereClause = "id = 1";
+        Object result = genericDAO.findById(1);
 
-        genericDAO.updateFields(fieldsToUpdate, whereClause);
-
-        verify(mockConnection, times(1)).prepareStatement("UPDATE test_table SET name = ?, age = ? WHERE id = 1");
-        verify(mockPreparedStatement, times(1)).setObject(1, "John Doe");
-        verify(mockPreparedStatement, times(1)).setObject(2, 30);
-        verify(mockPreparedStatement, times(1)).executeUpdate();
+        Assertions.assertNotNull(result, "Expected a non-null object when record exists");
+        verify(mockPreparedStatement).setObject(1, 1);
     }
 
     @Test
-    public void testUpdateFieldsWithEmptyFields() {
-        Map<String, Object> fieldsToUpdate = new HashMap<>();
-        String whereClause = "id = 1";
+    public void testFindByIdReturnsNullWhenNotExists() throws SQLException {
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(false);
 
-        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.updateFields(fieldsToUpdate, whereClause);
-        });
+        Object result = genericDAO.findById(1);
 
-        Assertions.assertEquals("Fields to update cannot be null or empty", exception.getMessage());
+        Assertions.assertNull(result, "Expected null when no record exists");
+        verify(mockPreparedStatement).setObject(1, 1);
     }
 
     @Test
-    public void testUpdateFieldsWithNullFields() {
-        String whereClause = "id = 1";
+    public void testUpdateFieldsReturnsTrueWhenUpdateSuccessful() throws SQLException {
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeUpdate()).thenReturn(1);
 
-        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.updateFields(null, whereClause);
-        });
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("name", "John Doe");
+        fields.put("age", 30);
 
-        Assertions.assertEquals("Fields to update cannot be null or empty", exception.getMessage());
+        boolean result = genericDAO.updateFields(1, fields);
+
+        Assertions.assertTrue(result, "Expected true when update is successful");
+        verify(mockPreparedStatement, times(3)).setObject(anyInt(), any());
     }
 
     @Test
-    public void testUpdateFieldsWithEmptyWhereClause() {
-        Map<String, Object> fieldsToUpdate = new HashMap<>();
-        fieldsToUpdate.put("name", "John Doe");
+    public void testUpdateFieldsReturnsFalseWhenNoFieldsProvided() throws SQLException {
+        boolean result = genericDAO.updateFields(1, new HashMap<>());
 
-        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.updateFields(fieldsToUpdate, "");
-        });
-
-        Assertions.assertEquals("Where clause cannot be null or empty", exception.getMessage());
+        Assertions.assertFalse(result, "Expected false when no fields are provided");
+        verify(mockConnection, never()).prepareStatement(anyString());
     }
 
     @Test
-    public void testUpdateFieldsWithNullWhereClause() {
-        Map<String, Object> fieldsToUpdate = new HashMap<>();
-        fieldsToUpdate.put("name", "John Doe");
+    public void testUpdateFieldsReturnsFalseWhenUpdateFails() throws SQLException {
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeUpdate()).thenReturn(0);
 
-        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.updateFields(fieldsToUpdate, null);
-        });
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("name", "John Doe");
 
-        Assertions.assertEquals("Where clause cannot be null or empty", exception.getMessage());
+        boolean result = genericDAO.updateFields(1, fields);
+
+        Assertions.assertFalse(result, "Expected false when update fails");
+        verify(mockPreparedStatement, times(2)).setObject(anyInt(), any());
     }
 
     @Test
-    public void testUpdateFieldsSQLException() throws SQLException {
-        Map<String, Object> fieldsToUpdate = new HashMap<>();
-        fieldsToUpdate.put("name", "John Doe");
-        String whereClause = "id = 1";
+    public void testFindByIdThrowsSQLException() throws SQLException {
+        when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException());
 
-        when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException("SQL error"));
+        Assertions.assertThrows(SQLException.class, () -> {
+            genericDAO.findById(1);
+        }, "Expected SQLException to be thrown");
+    }
 
-        SQLException exception = Assertions.assertThrows(SQLException.class, () -> {
-            genericDAO.updateFields(fieldsToUpdate, whereClause);
-        });
+    @Test
+    public void testUpdateFieldsThrowsSQLException() throws SQLException {
+        when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException());
 
-        Assertions.assertEquals("SQL error", exception.getMessage());
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("name", "John Doe");
+
+        Assertions.assertThrows(SQLException.class, () -> {
+            genericDAO.updateFields(1, fields);
+        }, "Expected SQLException to be thrown");
     }
 }

@@ -1,68 +1,53 @@
 package test;
 
-import database.core.DBConnection;
 import database.core.GenericDAO;
-import database.provider.PostgreSQL;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import java.sql.Connection;
-import java.util.HashMap;
-import java.util.Map;
-
+import java.sql.*;
+import java.util.*;
+import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class GenericDAOTest {
-    private GenericDAO<Emp> empDao;
-    private Connection connection;
+    private static Connection connection;
+    private static GenericDAO<Emp> empDAO;
 
-    @BeforeEach
-    public void setUp() throws Exception {
-        PostgreSQL database = new PostgreSQL("localhost", "5432", "dao", "user", "password");
-        DBConnection dbConnection = database.createConnection();
-        connection = dbConnection.getConnection();
-        empDao = new GenericDAO<>(connection, "Employee");
-    }
-
-    @Test
-    public void testUpdateFields() throws Exception {
-        // Simulate updating a field
-        Map<String, Object> fields = new HashMap<>();
-        fields.put("nom", "Pierre");
+    @BeforeAll
+    public static void setup() throws SQLException {
+        // Code pour initialiser la connexion à la base de données
+        // et instancier le GenericDAO avec la table appropriée
+        connection = DriverManager.getConnection("jdbc:h2:mem:testdb", "sa", "");
+        empDAO = new GenericDAO<>(connection, "employees", "id");
         
-        String whereClause = "prenom = 'Jean'";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("CREATE TABLE employees (id INT PRIMARY KEY, nom VARCHAR(255), prenom VARCHAR(255))");
+            stmt.execute("INSERT INTO employees (id, nom, prenom) VALUES (1, 'Dupont', 'Jean')");
+        }
+    }
 
-        empDao.updateFields(fields, whereClause);
-
-        // Assuming a method to fetch the updated value to assert exists
-        // For the test, this would ensure the "nom" is updated to "Pierre" where "prenom" is "Jean"
-        // Use assertions to verify the update
-        // assertEquals("Pierre", fetchedValue);
+    @AfterAll
+    public static void tearDown() throws SQLException {
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("DROP TABLE employees");
+        }
+        connection.close();
     }
 
     @Test
-    public void testUpdateFieldsWithEmptyFields() {
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-            empDao.updateFields(new HashMap<>(), "prenom = 'Jean'");
-        });
+    public void testUpdateFields() throws SQLException {
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("nom", "Durand");
+        fields.put("prenom", "Jacques");
 
-        String expectedMessage = "Fields to update cannot be null or empty";
-        String actualMessage = exception.getMessage();
+        boolean updated = empDAO.updateFields(1, fields);
 
-        assertTrue(actualMessage.contains(expectedMessage));
-    }
+        assertTrue(updated);
 
-    @Test
-    public void testUpdateFieldsWithNullWhereClause() {
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-            Map<String, Object> fields = new HashMap<>();
-            fields.put("nom", "Pierre");
-            empDao.updateFields(fields, null);
-        });
-
-        String expectedMessage = "Where clause cannot be null or empty";
-        String actualMessage = exception.getMessage();
-
-        assertTrue(actualMessage.contains(expectedMessage));
+        try (PreparedStatement stmt = connection.prepareStatement("SELECT * FROM employees WHERE id=?")) {
+            stmt.setInt(1, 1);
+            try (ResultSet rs = stmt.executeQuery()) {
+                assertTrue(rs.next());
+                assertEquals("Durand", rs.getString("nom"));
+                assertEquals("Jacques", rs.getString("prenom"));
+            }
+        }
     }
 }
