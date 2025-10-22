@@ -1,45 +1,75 @@
 package database.core;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
+import database.exception.SQL.AttributeMissingException;
+import database.exception.SQL.AttributeTypeNotExistingException;
+import database.exception.object.NotIdentifiedInDatabaseException;
+
+import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.List;
 
-public class GenericDAO<T> {
-    // ... code existant ...
-    
-    /**
-     * Met à jour les champs spécifiques d'un enregistrement dans la base de données
-     * @param dbConnection La connexion à la base de données
-     * @param fields Les champs à mettre à jour
-     * @param values Les nouvelles valeurs à affecter aux champs
-     * @param condition La condition SQL (par ex., "id = 1")
-     * @throws SQLException en cas d'erreur SQL
-     */
-    public void updateFields(DBConnection dbConnection, String[] fields, Object[] values, String condition) throws SQLException {
-        if (fields.length != values.length) {
-            throw new IllegalArgumentException("Le nombre de champs doit correspondre au nombre de valeurs.");
-        }
+public class GenericDAO {
+    String id;
 
-        StringBuilder sql = new StringBuilder("UPDATE ");
-        sql.append(getTableName()); // Assure-toi d'avoir une méthode getTableName() dans ta classe
-        sql.append(" SET ");
-
-        for (int i = 0; i < fields.length; i++) {
-            sql.append(fields[i]).append(" = ?");
-            if (i < fields.length - 1) {
-                sql.append(", ");
-            }
-        }
-
-        sql.append(" WHERE ").append(condition);
-
-        try (PreparedStatement stmt = dbConnection.getConnection().prepareStatement(sql.toString())) {
-            for (int i = 0; i < values.length; i++) {
-                stmt.setObject(i + 1, values[i]);
-            }
-            stmt.executeUpdate();
-        }
+    public void createTable(DBConnection dbConnection) throws SQLException, AttributeTypeNotExistingException, AttributeMissingException {
+        dbConnection.getDatabase().createTable(dbConnection.getConnection(), this);
+        dbConnection.getDatabase().createSequence(dbConnection.getConnection(), getClass().getSimpleName()+"_seq");
     }
-    
-    // ... reste du code existant ...
+
+    public void save(DBConnection dbConnection, Sequence sequence) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        setId(dbConnection.getDatabase().getSequence(dbConnection.getConnection(), sequence));
+        dbConnection.getDatabase().insertObject(dbConnection.getConnection(), this);
+    }
+
+    public void save(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        Sequence sequence = new Sequence("", 10, getClass().getSimpleName());
+        save(dbConnection, sequence);
+    }
+
+    void update(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        dbConnection.getDatabase().updateObject(dbConnection.getConnection(), condition, this);
+    }
+
+    public void update(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException, NotIdentifiedInDatabaseException {
+        update(dbConnection,"id='"+getId()+"'");
+    }
+
+    void delete(DBConnection dbConnection, String condition) throws SQLException {
+        dbConnection.getDatabase().delete(dbConnection.getConnection(), getClass().getSimpleName(), condition);
+    }
+
+    public void delete(DBConnection dbConnection) throws SQLException, NotIdentifiedInDatabaseException {
+        delete(dbConnection, "id='"+getId()+"'");
+    }
+
+    public List<Object> getAll(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return dbConnection.getDatabase().selectListObject(dbConnection.getConnection(), getClass(), condition);
+    }
+
+    public List<Object> getAll(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return getAll(dbConnection, "1=1");
+    }
+
+    public Object get(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return dbConnection.getDatabase().selectObject(dbConnection.getConnection(), getClass(), condition);
+    }
+
+    public Object getById(DBConnection dbConnection, String id) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return get(dbConnection, "id='"+id+"'");
+    }
+
+    public void historize(DBConnection dbConnection, String action) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        dbConnection.getDatabase().insert(dbConnection.getConnection(), "history", Timestamp.from(Instant.now()), getClass().getSimpleName(), action, toString());
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getId() throws NotIdentifiedInDatabaseException {
+        if(id == null) throw new NotIdentifiedInDatabaseException(this);
+        return id;
+    }
 }
