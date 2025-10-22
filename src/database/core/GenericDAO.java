@@ -1,48 +1,75 @@
 package database.core;
 
-import java.sql.*;
+import database.exception.SQL.AttributeMissingException;
+import database.exception.SQL.AttributeTypeNotExistingException;
+import database.exception.object.NotIdentifiedInDatabaseException;
 
-/**
- * Une classe générique pour les opérations de base de données.
- * @param <T> Le type d'objet manipulé par ce DAO.
- */
-public class GenericDAO<T> {
-    private final Connection connection;
-    private final String tableName;
+import java.lang.reflect.InvocationTargetException;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.List;
 
-    public GenericDAO(Connection connection, String tableName) {
-        this.connection = connection;
-        this.tableName = tableName;
+public class GenericDAO {
+    String id;
+
+    public void createTable(DBConnection dbConnection) throws SQLException, AttributeTypeNotExistingException, AttributeMissingException {
+        dbConnection.getDatabase().createTable(dbConnection.getConnection(), this);
+        dbConnection.getDatabase().createSequence(dbConnection.getConnection(), getClass().getSimpleName()+"_seq");
     }
 
-    /**
-     * Met à jour des champs spécifiques d'un enregistrement dans la base de données.
-     * @param fields Les champs à mettre à jour.
-     * @param values Les valeurs correspondant aux champs à mettre à jour.
-     * @param condition La condition pour déterminer quel enregistrement mettre à jour.
-     * @throws SQLException En cas d'erreur SQL.
-     */
-    public void updateFields(String[] fields, Object[] values, String condition) throws SQLException {
-        if (fields.length != values.length) {
-            throw new IllegalArgumentException("Le nombre de champs doit correspondre au nombre de valeurs.");
-        }
-        
-        StringBuilder sql = new StringBuilder("UPDATE ").append(tableName).append(" SET ");
-        for (int i = 0; i < fields.length; i++) {
-            sql.append(fields[i]).append(" = ?");
-            if (i < fields.length - 1) {
-                sql.append(", ");
-            }
-        }
-        sql.append(" WHERE ").append(condition);
-
-        try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
-            for (int i = 0; i < values.length; i++) {
-                stmt.setObject(i + 1, values[i]);
-            }
-            stmt.executeUpdate();
-        }
+    public void save(DBConnection dbConnection, Sequence sequence) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        setId(dbConnection.getDatabase().getSequence(dbConnection.getConnection(), sequence));
+        dbConnection.getDatabase().insertObject(dbConnection.getConnection(), this);
     }
-    
-    // Autres méthodes existantes du GenericDAO...
+
+    public void save(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        Sequence sequence = new Sequence("", 10, getClass().getSimpleName());
+        save(dbConnection, sequence);
+    }
+
+    void update(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        dbConnection.getDatabase().updateObject(dbConnection.getConnection(), condition, this);
+    }
+
+    public void update(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException, NotIdentifiedInDatabaseException {
+        update(dbConnection,"id='"+getId()+"'");
+    }
+
+    void delete(DBConnection dbConnection, String condition) throws SQLException {
+        dbConnection.getDatabase().delete(dbConnection.getConnection(), getClass().getSimpleName(), condition);
+    }
+
+    public void delete(DBConnection dbConnection) throws SQLException, NotIdentifiedInDatabaseException {
+        delete(dbConnection, "id='"+getId()+"'");
+    }
+
+    public List<Object> getAll(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return dbConnection.getDatabase().selectListObject(dbConnection.getConnection(), getClass(), condition);
+    }
+
+    public List<Object> getAll(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return getAll(dbConnection, "1=1");
+    }
+
+    public Object get(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return dbConnection.getDatabase().selectObject(dbConnection.getConnection(), getClass(), condition);
+    }
+
+    public Object getById(DBConnection dbConnection, String id) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return get(dbConnection, "id='"+id+"'");
+    }
+
+    public void historize(DBConnection dbConnection, String action) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        dbConnection.getDatabase().insert(dbConnection.getConnection(), "history", Timestamp.from(Instant.now()), getClass().getSimpleName(), action, toString());
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getId() throws NotIdentifiedInDatabaseException {
+        if(id == null) throw new NotIdentifiedInDatabaseException(this);
+        return id;
+    }
 }
