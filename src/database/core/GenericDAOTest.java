@@ -7,87 +7,90 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import database.core.GenericDAO;
+import database.core.DBConnection;
 
-class GenericDAOTest {
+public class GenericDAOTest {
 
+    private GenericDAO<Object> genericDAO;
+    private DBConnection mockDbConnection;
     private Connection mockConnection;
     private PreparedStatement mockPreparedStatement;
-    private GenericDAO<Object> genericDAO;
 
     @BeforeEach
-    void setUp() throws SQLException {
+    public void setUp() throws SQLException {
+        genericDAO = new GenericDAO<Object>() {
+            @Override
+            protected String getTableName() {
+                return "test_table";
+            }
+        };
+        mockDbConnection = Mockito.mock(DBConnection.class);
         mockConnection = Mockito.mock(Connection.class);
         mockPreparedStatement = Mockito.mock(PreparedStatement.class);
+
+        Mockito.when(mockDbConnection.getConnection()).thenReturn(mockConnection);
         Mockito.when(mockConnection.prepareStatement(Mockito.anyString())).thenReturn(mockPreparedStatement);
-        genericDAO = new GenericDAO<>(mockConnection);
     }
 
     @AfterEach
-    void tearDown() {
-        Mockito.reset(mockConnection, mockPreparedStatement);
+    public void tearDown() {
+        genericDAO = null;
+        mockDbConnection = null;
+        mockConnection = null;
+        mockPreparedStatement = null;
     }
 
     @Test
-    void testUpdateFieldsSuccess() throws SQLException {
-        // Arrange
-        String[] fields = {"name", "age"};
-        Object[] values = {"John Doe", 30};
+    public void testUpdateFieldsSuccess() throws SQLException {
+        String[] fields = {"field1", "field2"};
+        Object[] values = {123, "value"};
         String condition = "id = 1";
-        DBConnection dbConnection = Mockito.mock(DBConnection.class);
-        Mockito.when(dbConnection.getConnection()).thenReturn(mockConnection);
 
-        // Act
-        genericDAO.updateFields(dbConnection, "users", fields, values, condition);
+        genericDAO.updateFields(mockDbConnection, fields, values, condition);
 
-        // Assert
-        Mockito.verify(mockConnection).prepareStatement("UPDATE users SET name = ?, age = ? WHERE id = 1");
-        Mockito.verify(mockPreparedStatement).setObject(1, "John Doe");
-        Mockito.verify(mockPreparedStatement).setObject(2, 30);
+        Mockito.verify(mockConnection).prepareStatement("UPDATE test_table SET field1 = ?, field2 = ? WHERE id = 1");
+        Mockito.verify(mockPreparedStatement).setObject(1, 123);
+        Mockito.verify(mockPreparedStatement).setObject(2, "value");
         Mockito.verify(mockPreparedStatement).executeUpdate();
     }
 
     @Test
-    void testUpdateFieldsThrowsSQLException() throws SQLException {
-        // Arrange
-        String[] fields = {"name"};
-        Object[] values = {"John Doe"};
+    public void testUpdateFieldsThrowsSQLException() throws SQLException {
+        String[] fields = {"field1"};
+        Object[] values = {123};
         String condition = "id = 1";
-        DBConnection dbConnection = Mockito.mock(DBConnection.class);
-        Mockito.when(dbConnection.getConnection()).thenReturn(mockConnection);
+
         Mockito.when(mockConnection.prepareStatement(Mockito.anyString())).thenThrow(new SQLException("Database error"));
 
-        // Act & Assert
-        Assertions.assertThrows(SQLException.class, () -> {
-            genericDAO.updateFields(dbConnection, "users", fields, values, condition);
+        SQLException exception = Assertions.assertThrows(SQLException.class, () -> {
+            genericDAO.updateFields(mockDbConnection, fields, values, condition);
         });
+
+        Assertions.assertEquals("Database error", exception.getMessage());
     }
 
     @Test
-    void testUpdateFieldsThrowsIllegalArgumentException() {
-        // Arrange
-        String[] fields = {"name"};
-        Object[] values = {"John Doe", 30};
+    public void testUpdateFieldsThrowsIllegalArgumentException() {
+        String[] fields = {"field1"};
+        Object[] values = {123, "value"};
         String condition = "id = 1";
-        DBConnection dbConnection = Mockito.mock(DBConnection.class);
 
-        // Act & Assert
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.updateFields(dbConnection, "users", fields, values, condition);
+        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            genericDAO.updateFields(mockDbConnection, fields, values, condition);
         });
+
+        Assertions.assertEquals("Le nombre de champs doit correspondre au nombre de valeurs.", exception.getMessage());
     }
 
     @Test
-    void testUpdateFieldsWithEmptyFieldsAndValues() throws SQLException {
-        // Arrange
+    public void testUpdateFieldsWithEmptyFieldsAndValues() throws SQLException {
         String[] fields = {};
         Object[] values = {};
-        String condition = "id = 1";
-        DBConnection dbConnection = Mockito.mock(DBConnection.class);
-        Mockito.when(dbConnection.getConnection()).thenReturn(mockConnection);
+        String condition = "1 = 1";
 
-        // Act & Assert
-        Assertions.assertThrows(SQLException.class, () -> {
-            genericDAO.updateFields(dbConnection, "users", fields, values, condition);
-        });
+        genericDAO.updateFields(mockDbConnection, fields, values, condition);
+
+        Mockito.verify(mockConnection).prepareStatement("UPDATE test_table SET  WHERE 1 = 1");
+        Mockito.verify(mockPreparedStatement).executeUpdate();
     }
 }
