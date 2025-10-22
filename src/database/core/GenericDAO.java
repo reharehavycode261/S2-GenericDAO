@@ -1,75 +1,72 @@
 package database.core;
 
-import database.exception.SQL.AttributeMissingException;
-import database.exception.SQL.AttributeTypeNotExistingException;
-import database.exception.object.NotIdentifiedInDatabaseException;
+import java.sql.*;
+import java.util.*;
 
-import java.lang.reflect.InvocationTargetException;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.List;
+public class GenericDAO<T> {
 
-public class GenericDAO {
-    String id;
+    protected Connection connection;
+    protected String tableName;
 
-    public void createTable(DBConnection dbConnection) throws SQLException, AttributeTypeNotExistingException, AttributeMissingException {
-        dbConnection.getDatabase().createTable(dbConnection.getConnection(), this);
-        dbConnection.getDatabase().createSequence(dbConnection.getConnection(), getClass().getSimpleName()+"_seq");
+    public GenericDAO(Connection connection, String tableName) {
+        this.connection = connection;
+        this.tableName = tableName;
     }
 
-    public void save(DBConnection dbConnection, Sequence sequence) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        setId(dbConnection.getDatabase().getSequence(dbConnection.getConnection(), sequence));
-        dbConnection.getDatabase().insertObject(dbConnection.getConnection(), this);
+    // Mise à jour des champs sélectionnés pour un enregistrement donné
+    public boolean updateFields(int id, Map<String, Object> fields) throws SQLException {
+        if (fields == null || fields.isEmpty()) {
+            throw new IllegalArgumentException("Fields to update cannot be null or empty.");
+        }
+
+        StringBuilder sql = new StringBuilder("UPDATE ");
+        sql.append(tableName).append(" SET ");
+
+        int count = 0;
+        for (String field : fields.keySet()) {
+            if (count++ > 0) {
+                sql.append(", ");
+            }
+            sql.append(field).append(" = ?");
+        }
+        sql.append(" WHERE id = ?");
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
+            int index = 1;
+
+            for (Object value : fields.values()) {
+                stmt.setObject(index++, value);
+            }
+            stmt.setInt(index, id);
+
+            return stmt.executeUpdate() > 0;
+        }
     }
 
-    public void save(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        Sequence sequence = new Sequence("", 10, getClass().getSimpleName());
-        save(dbConnection, sequence);
+    // Récupération avec pagination
+    public List<T> findWithPagination(int limit, int offset) throws SQLException {
+        List<T> results = new ArrayList<>();
+        String sql = "SELECT * FROM " + tableName + " LIMIT ? OFFSET ?";
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, limit);
+            stmt.setInt(2, offset);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    // Supposing there is a method to convert ResultSet to the desired object
+                    T obj = mapResultSetToEntity(rs);
+                    results.add(obj);
+                }
+            }
+        }
+
+        return results;
     }
 
-    void update(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        dbConnection.getDatabase().updateObject(dbConnection.getConnection(), condition, this);
-    }
-
-    public void update(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException, NotIdentifiedInDatabaseException {
-        update(dbConnection,"id='"+getId()+"'");
-    }
-
-    void delete(DBConnection dbConnection, String condition) throws SQLException {
-        dbConnection.getDatabase().delete(dbConnection.getConnection(), getClass().getSimpleName(), condition);
-    }
-
-    public void delete(DBConnection dbConnection) throws SQLException, NotIdentifiedInDatabaseException {
-        delete(dbConnection, "id='"+getId()+"'");
-    }
-
-    public List<Object> getAll(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return dbConnection.getDatabase().selectListObject(dbConnection.getConnection(), getClass(), condition);
-    }
-
-    public List<Object> getAll(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return getAll(dbConnection, "1=1");
-    }
-
-    public Object get(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return dbConnection.getDatabase().selectObject(dbConnection.getConnection(), getClass(), condition);
-    }
-
-    public Object getById(DBConnection dbConnection, String id) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return get(dbConnection, "id='"+id+"'");
-    }
-
-    public void historize(DBConnection dbConnection, String action) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        dbConnection.getDatabase().insert(dbConnection.getConnection(), "history", Timestamp.from(Instant.now()), getClass().getSimpleName(), action, toString());
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getId() throws NotIdentifiedInDatabaseException {
-        if(id == null) throw new NotIdentifiedInDatabaseException(this);
-        return id;
+    // This method would need to be implemented to map a ResultSet to the entity T
+    protected T mapResultSetToEntity(ResultSet rs) throws SQLException {
+        // Implementation specific to T
+        return null; // Placeholder implementation
     }
 }
