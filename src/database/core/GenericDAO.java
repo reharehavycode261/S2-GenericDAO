@@ -1,48 +1,45 @@
 package database.core;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.Map;
+import java.sql.*;
+import java.util.*;
 
 public class GenericDAO<T> {
-    private final Connection connection;
-    private final String tableName;
+    private Connection connection;
+    private String tableName;
 
     public GenericDAO(Connection connection, String tableName) {
         this.connection = connection;
         this.tableName = tableName;
     }
 
-    // ... autres méthodes existantes ...
-
     /**
-     * Met à jour des champs spécifiques d'un enregistrement dans la table
-     * @param id L'identifiant de l'enregistrement à mettre à jour
-     * @param fields Map contenant les noms des champs et leurs nouvelles valeurs
-     * @return Le nombre de lignes affectées par la mise à jour
-     * @throws SQLException en cas d'erreur SQL
+     * Met à jour les champs spécifiés d'un enregistrement dans la base de données.
+     * @param id L'identifiant de l'enregistrement à mettre à jour.
+     * @param fields Un Map contenant les noms des champs et leurs nouvelles valeurs.
+     * @return true si la mise à jour a réussi, false autrement.
+     * @throws SQLException en cas d'erreur SQL.
      */
-    public int updateFields(Object id, Map<String, Object> fields) throws SQLException {
-        if (fields == null || fields.isEmpty()) {
-            throw new IllegalArgumentException("La collection des champs ne doit pas être vide");
-        }
+    public boolean updateFields(int id, Map<String, Object> fields) throws SQLException {
+        if (fields == null || fields.isEmpty()) return false;
 
         StringBuilder sql = new StringBuilder("UPDATE " + tableName + " SET ");
-        fields.forEach((key, value) -> sql.append(key).append(" = ?, "));
-        sql.delete(sql.length() - 2, sql.length()); // Supprimer la dernière virgule
+        List<Object> values = new ArrayList<>();
+        
+        for (String fieldName : fields.keySet()) {
+            sql.append(fieldName).append(" = ?, ");
+            values.add(fields.get(fieldName));
+        }
+        
+        sql.delete(sql.length() - 2, sql.length()); // Remove the last comma and space
         sql.append(" WHERE id = ?");
-
+        values.add(id);
+        
         try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
-            int index = 1;
-            for (Object value : fields.values()) {
-                stmt.setObject(index++, value);
+            for (int i = 0; i < values.size(); i++) {
+                stmt.setObject(i + 1, values.get(i));
             }
-            stmt.setObject(index, id);
-
-            return stmt.executeUpdate();
+            
+            return stmt.executeUpdate() > 0;
         }
     }
-
-    // ... reste du code existant ...
 }
