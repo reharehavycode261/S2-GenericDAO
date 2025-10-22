@@ -1,95 +1,75 @@
-package test;
-
 import database.core.DBConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class DBConnectionTest {
-    @Mock
-    private Connection mockConnection;
-
-    @Mock
-    private PreparedStatement mockPreparedStatement;
-
+    
     private DBConnection dbConnection;
 
-    private AutoCloseable closeable;
-
     @BeforeEach
-    public void setUp() throws SQLException {
-        closeable = MockitoAnnotations.openMocks(this);
-        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-        dbConnection = new DBConnection(null, mockConnection);
+    public void setup() throws SQLException {
+        // Assurez-vous de remplacer par une connexion de test valide
+        Connection connection = DriverManager.getConnection("jdbc:h2:mem:testdb", "sa", "");
+        dbConnection = new DBConnection(connection);
+
+        // Set up the database schema for testing - Example
+        connection.createStatement().execute("CREATE TABLE test_table (id INT PRIMARY KEY, name VARCHAR(255), age INT)");
+        connection.createStatement().execute("INSERT INTO test_table (id, name, age) VALUES (1, 'John Doe', 30)");
     }
 
-    @AfterEach
-    public void tearDown() throws Exception {
-        closeable.close();
-    }
-
-    /**
-     * Test positif pour la méthode updateFields, vérifie que la requête SQL est correctement formée
-     * et que les méthodes appropriées sont appelées sur le PreparedStatement.
-     */
     @Test
     public void testUpdateFields() throws SQLException {
-        String[] fields = {"name", "age"};
-        Object[] values = {"John Doe", 30};
-        String condition = "id = 1";
+        dbConnection.updateFields("test_table", new String[]{"name", "age"}, new Object[]{"Jane Doe", 25}, "id = 1");
 
-        dbConnection.updateFields("users", fields, values, condition);
-
-        verify(mockConnection).prepareStatement(eq("UPDATE users SET name = ?, age = ? WHERE id = 1"));
-        verify(mockPreparedStatement).setObject(1, "John Doe");
-        verify(mockPreparedStatement).setObject(2, 30);
-        verify(mockPreparedStatement).executeUpdate();
+        // Check if the update was successful
+        var resultSet = dbConnection.connection.createStatement().executeQuery("SELECT name, age FROM test_table WHERE id = 1");
+        assertTrue(resultSet.next(), "ResultSet should have at least one row");
+        assertEquals("Jane Doe", resultSet.getString("name"), "Name should be updated to 'Jane Doe'");
+        assertEquals(25, resultSet.getInt("age"), "Age should be updated to 25");
     }
 
-    /**
-     * Test négatif pour la méthode updateFields, vérifie que SQLException est lancée
-     * lorsque la préparation de la requête échoue.
-     */
     @Test
-    public void testUpdateFieldsSQLException() throws SQLException {
-        when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException("Database error"));
-
-        String[] fields = {"name"};
-        Object[] values = {"John Doe"};
-        String condition = "id = 1";
-
-        SQLException exception = Assertions.assertThrows(SQLException.class, () -> {
-            dbConnection.updateFields("users", fields, values, condition);
-        });
-
-        Assertions.assertEquals("Database error", exception.getMessage(), "SQLException message should match");
+    public void testUpdateFieldsWithInvalidTable() {
+        assertThrows(SQLException.class, () -> {
+            dbConnection.updateFields("invalid_table", new String[]{"name"}, new Object[]{"Jane Doe"}, "id = 1");
+        }, "Updating a non-existent table should throw SQLException");
     }
 
-    /**
-     * Test négatif pour la méthode updateFields, vérifie que IllegalArgumentException est lancée
-     * lorsque les longueurs des tableaux fields et values ne correspondent pas.
-     */
     @Test
-    public void testUpdateFieldsMismatchedArrays() {
-        String[] fields = {"name"};
-        Object[] values = {"John Doe", 30}; // Intentionally mismatched lengths
-        String condition = "id = 1";
+    public void testUpdateFieldsWithInvalidColumn() {
+        assertThrows(SQLException.class, () -> {
+            dbConnection.updateFields("test_table", new String[]{"invalid_column"}, new Object[]{"Jane Doe"}, "id = 1");
+        }, "Updating a non-existent column should throw SQLException");
+    }
 
-        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            dbConnection.updateFields("users", fields, values, condition);
-        });
+    @Test
+    public void testUpdateFieldsWithInvalidCondition() throws SQLException {
+        dbConnection.updateFields("test_table", new String[]{"name", "age"}, new Object[]{"Jane Doe", 25}, "id = 999");
 
-        Assertions.assertEquals("Fields and values array lengths must match", exception.getMessage(), "IllegalArgumentException message should match");
+        // Check if the update was unsuccessful
+        var resultSet = dbConnection.connection.createStatement().executeQuery("SELECT name, age FROM test_table WHERE id = 1");
+        assertTrue(resultSet.next(), "ResultSet should have at least one row");
+        assertEquals("John Doe", resultSet.getString("name"), "Name should remain 'John Doe'");
+        assertEquals(30, resultSet.getInt("age"), "Age should remain 30");
+    }
+
+    @Test
+    public void testUpdateFieldsWithNullValues() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            dbConnection.updateFields("test_table", new String[]{"name", "age"}, null, "id = 1");
+        }, "Passing null values should throw IllegalArgumentException");
+    }
+
+    @Test
+    public void testUpdateFieldsWithMismatchedFieldsAndValues() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            dbConnection.updateFields("test_table", new String[]{"name"}, new Object[]{"Jane Doe", 25}, "id = 1");
+        }, "Mismatched fields and values length should throw IllegalArgumentException");
     }
 }
