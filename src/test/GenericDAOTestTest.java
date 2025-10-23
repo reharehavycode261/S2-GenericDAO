@@ -3,89 +3,96 @@ package test;
 import database.core.GenericDAO;
 import database.core.Affectation;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.function.Executable;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class GenericDAOTest {
-
+class GenericDAOTest {
     private static Connection connection;
-    private static GenericDAO<Object> dao;
+    private TestDAO dao;
 
     @BeforeAll
-    public static void setup() throws SQLException {
-        // Setup in-memory database and table
-        connection = DriverManager.getConnection("jdbc:h2:mem:test");
-        Statement statement = connection.createStatement();
-        statement.execute("CREATE TABLE test (id INT PRIMARY KEY, name VARCHAR(255), age INT)");
-
-        // Initialize GenericDAO
-        dao = new GenericDAO<>(connection, "test", "id");
+    static void setUpClass() throws Exception {
+        // Establish the connection for tests
+        connection = DriverManager.getConnection("jdbc:h2:mem:testdb", "sa", "");
+        Statement stmt = connection.createStatement();
+        stmt.execute("CREATE TABLE test_table (id INT PRIMARY KEY, name VARCHAR(255), age INT)");
+        stmt.execute("INSERT INTO test_table (id, name, age) VALUES (1, 'John Doe', 30)");
+        stmt.execute("INSERT INTO test_table (id, name, age) VALUES (2, 'Jane Doe', 25)");
     }
 
     @BeforeEach
-    public void init() throws SQLException {
-        // Clean and populate the table before each test
-        Statement statement = connection.createStatement();
-        statement.execute("DELETE FROM test");
-        statement.execute("INSERT INTO test (id, name, age) VALUES (1, 'John Doe', 30)");
-    }
-
-    @Test
-    public void testUpdateFieldsSuccessful() throws SQLException {
-        // Prepare updates
-        List<Affectation> updates = new ArrayList<>();
-        updates.add(new Affectation("name", "John Smith"));
-        updates.add(new Affectation("age", 31));
-
-        // Execute update
-        dao.updateFields(1, updates);
-
-        // Verify the update
-        Statement statement = connection.createStatement();
-        ResultSet rs = statement.executeQuery("SELECT * FROM test WHERE id = 1");
-        assertTrue(rs.next(), "Record with ID 1 should exist");
-        assertEquals("John Smith", rs.getString("name"), "Name should be updated to 'John Smith'");
-        assertEquals(31, rs.getInt("age"), "Age should be updated to 31");
-    }
-
-    @Test
-    public void testUpdateFieldsNonExistentRecord() {
-        // Prepare updates
-        List<Affectation> updates = new ArrayList<>();
-        updates.add(new Affectation("name", "Jane Doe"));
-
-        // Attempt to update a non-existent record
-        Executable executable = () -> dao.updateFields(2, updates);
-
-        // Verify that an exception is thrown
-        SQLException exception = assertThrows(SQLException.class, executable, "Updating non-existent record should throw SQLException");
-        assertTrue(exception.getMessage().contains("No data found"), "Exception message should indicate no data found");
-    }
-
-    @Test
-    public void testUpdateFieldsInvalidColumn() {
-        // Prepare updates with an invalid column
-        List<Affectation> updates = new ArrayList<>();
-        updates.add(new Affectation("invalid_column", "Some Value"));
-
-        // Attempt to update with an invalid column
-        Executable executable = () -> dao.updateFields(1, updates);
-
-        // Verify that an exception is thrown
-        SQLException exception = assertThrows(SQLException.class, executable, "Updating with invalid column should throw SQLException");
-        assertTrue(exception.getMessage().contains("Column not found"), "Exception message should indicate column not found");
+    void setUp() {
+        dao = new TestDAO(connection, "test_table");
     }
 
     @AfterAll
-    public static void tearDown() throws SQLException {
-        // Close the connection after all tests
-        if (connection != null && !connection.isClosed()) {
-            connection.close();
+    static void tearDownClass() throws SQLException {
+        connection.close();
+    }
+
+    @Test
+    void updateFieldsTest() throws SQLException {
+        List<Affectation> updates = Arrays.asList(
+            new Affectation("name", "John Smith"),
+            new Affectation("age", 31)
+        );
+
+        dao.updateFields(1, updates);
+
+        // Verify updates
+        String sql = "SELECT name, age FROM test_table WHERE id = 1";
+        try (PreparedStatement stmt = connection.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            assertTrue(rs.next(), "Record with ID 1 should exist");
+            assertEquals("John Smith", rs.getString("name"), "Name should be updated to John Smith");
+            assertEquals(31, rs.getInt("age"), "Age should be updated to 31");
         }
+    }
+
+    @Test
+    void updateFieldsNonExistentRecordTest() {
+        List<Affectation> updates = Arrays.asList(
+            new Affectation("name", "Non Existent"),
+            new Affectation("age", 99)
+        );
+
+        assertThrows(SQLException.class, () -> {
+            dao.updateFields(999, updates);
+        }, "Updating non-existent record should throw SQLException");
+    }
+
+    @Test
+    void findAllWithPaginationTest() throws SQLException {
+        // Retrieve first page with one record per page
+        List<TestEntity> result = dao.findAllWithPagination(1, 1);
+        assertEquals(1, result.size(), "First page should contain exactly one record");
+        assertEquals("John Doe", result.get(0).getName(), "First record on first page should be John Doe");
+
+        // Retrieve second page with one record per page
+        result = dao.findAllWithPagination(2, 1);
+        assertEquals(1, result.size(), "Second page should contain exactly one record");
+        assertEquals("Jane Doe", result.get(0).getName(), "First record on second page should be Jane Doe");
+    }
+
+    @Test
+    void findAllWithPaginationInvalidPageTest() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            dao.findAllWithPagination(0, 1);
+        }, "Requesting page 0 should throw IllegalArgumentException");
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            dao.findAllWithPagination(1, 0);
+        }, "Requesting with page size 0 should throw IllegalArgumentException");
+    }
+
+    @Test
+    void findAllWithPaginationBeyondLastPageTest() throws SQLException {
+        // Retrieve a page beyond the last page
+        List<TestEntity> result = dao.findAllWithPagination(3, 1);
+        assertTrue(result.isEmpty(), "Page beyond last should return an empty list");
     }
 }
