@@ -6,53 +6,41 @@ import java.sql.SQLException;
 import java.util.Map;
 
 public class GenericDAO<T> {
-
-    protected Connection connection;
-    protected String tableName;
+    private final Connection connection;
+    private final String tableName;
 
     public GenericDAO(Connection connection, String tableName) {
         this.connection = connection;
         this.tableName = tableName;
     }
 
-    // ... autres méthodes ...
-
     /**
-     * Met à jour les champs spécifiques d'une entité dans la base de données.
-     * @param entity l'entité à mettre à jour
-     * @param fieldsToUpdate map contenant les champs et leurs nouvelles valeurs
-     * @return nombre de lignes affectées
-     * @throws SQLException en cas d'erreur SQL
+     * Met à jour les champs spécifiés d'un enregistrement dans la base de données.
+     * @param fields Les champs à mettre à jour sous la forme d'une map (nom_champ -> valeur).
+     * @param criteria Les critères utilisés pour sélectionner l'enregistrement à mettre à jour.
+     * @throws SQLException en cas d'erreur SQL.
      */
-    public int updateFields(T entity, Map<String, Object> fieldsToUpdate) throws SQLException {
-        if (fieldsToUpdate == null || fieldsToUpdate.isEmpty()) {
-            throw new IllegalArgumentException("fieldsToUpdate cannot be null or empty");
-        }
+    public void updateFields(Map<String, Object> fields, Map<String, Object> criteria) throws SQLException {
+        StringBuilder sql = new StringBuilder("UPDATE ").append(tableName).append(" SET ");
+        fields.forEach((key, value) -> sql.append(key).append(" = ?, "));
+        sql.setLength(sql.length() - 2); // Supprimer la dernière virgule
+        sql.append(" WHERE ");
+        criteria.forEach((key, value) -> sql.append(key).append(" = ? AND "));
+        sql.setLength(sql.length() - 5); // Supprimer le dernier "AND"
 
-        StringBuilder sql = new StringBuilder("UPDATE " + tableName + " SET ");
-        for (String field : fieldsToUpdate.keySet()) {
-            sql.append(field).append(" = ?, ");
-        }
-        sql.setLength(sql.length() - 2); // Remove last comma
-        // Assuming the entity has a method getId() to get the primary key
-        sql.append(" WHERE id = ?");
-
-        try (PreparedStatement statement = connection.prepareStatement(sql.toString())) {
+        try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
             int index = 1;
-            for (Object value : fieldsToUpdate.values()) {
-                statement.setObject(index++, value);
+            for (Map.Entry<String, Object> entry : fields.entrySet()) {
+                stmt.setObject(index++, entry.getValue());
             }
-            // Assuming the entity has a method getId() to get the primary key
-            statement.setObject(index, getIdFromEntity(entity));
-            return statement.executeUpdate();
+            for (Map.Entry<String, Object> entry : criteria.entrySet()) {
+                stmt.setObject(index++, entry.getValue());
+            }
+            stmt.executeUpdate();
         }
     }
+    
+    // Méthodes supplémentaires...
 
-    private Object getIdFromEntity(T entity) {
-        // Logic to extract ID from entity
-        // This is a mock-up code which needs to be replaced with actual implementation based on how an entity is structured.
-        return 0; // Placeholder for a real ID extraction
-    }
-
-    // ... autres méthodes ...
+    // Implémentation future : pagination des résultats
 }
