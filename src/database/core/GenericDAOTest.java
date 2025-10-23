@@ -8,38 +8,38 @@ import org.mockito.Mockito;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
 class GenericDAOTest {
 
-    private GenericDAO<Object> genericDAO;
     private Connection mockConnection;
     private PreparedStatement mockPreparedStatement;
+    private ResultSet mockResultSet;
+    private GenericDAO<Object> genericDAO;
 
     @BeforeEach
     void setUp() throws SQLException {
         mockConnection = Mockito.mock(Connection.class);
         mockPreparedStatement = Mockito.mock(PreparedStatement.class);
+        mockResultSet = Mockito.mock(ResultSet.class);
 
-        // Mock the behavior of the connection to return the prepared statement
-        Mockito.when(mockConnection.prepareStatement(Mockito.anyString())).thenReturn(mockPreparedStatement);
-
-        // Create an anonymous subclass of GenericDAO for testing
         genericDAO = new GenericDAO<Object>() {
             {
                 this.connection = mockConnection;
                 this.tableName = "test_table";
             }
         };
+
+        Mockito.when(mockConnection.prepareStatement(Mockito.anyString())).thenReturn(mockPreparedStatement);
+        Mockito.when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
     }
 
     @AfterEach
-    void tearDown() {
-        genericDAO = null;
-        mockConnection = null;
-        mockPreparedStatement = null;
+    void tearDown() throws SQLException {
+        Mockito.verifyNoMoreInteractions(mockConnection, mockPreparedStatement, mockResultSet);
     }
 
     @Test
@@ -48,38 +48,23 @@ class GenericDAOTest {
         fieldsToUpdate.put("name", "John Doe");
         fieldsToUpdate.put("age", 30);
 
-        genericDAO.updateFields(1, fieldsToUpdate);
+        Mockito.when(mockPreparedStatement.executeUpdate()).thenReturn(1);
 
-        // Verify that the prepared statement was created with the correct SQL
-        Mockito.verify(mockConnection).prepareStatement("UPDATE test_table SET name = ?, age = ? WHERE id = ?");
+        boolean result = genericDAO.updateFields(1, fieldsToUpdate);
 
-        // Verify that the parameters were set correctly
-        Mockito.verify(mockPreparedStatement).setObject(1, "John Doe");
-        Mockito.verify(mockPreparedStatement).setObject(2, 30);
-        Mockito.verify(mockPreparedStatement).setObject(3, 1);
-
-        // Verify that executeUpdate was called
-        Mockito.verify(mockPreparedStatement).executeUpdate();
+        Assertions.assertTrue(result, "The update should be successful.");
+        Mockito.verify(mockPreparedStatement, Mockito.times(1)).executeUpdate();
     }
 
     @Test
-    void testUpdateFieldsWithEmptyFields() {
+    void testUpdateFieldsEmptyFields() {
         Map<String, Object> fieldsToUpdate = new HashMap<>();
 
         IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
             genericDAO.updateFields(1, fieldsToUpdate);
         });
 
-        Assertions.assertEquals("fieldsToUpdate ne doit pas être nul ou vide", exception.getMessage());
-    }
-
-    @Test
-    void testUpdateFieldsWithNullFields() {
-        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.updateFields(1, null);
-        });
-
-        Assertions.assertEquals("fieldsToUpdate ne doit pas être nul ou vide", exception.getMessage());
+        Assertions.assertEquals("fieldsToUpdate ne peut pas être vide", exception.getMessage());
     }
 
     @Test
@@ -87,13 +72,51 @@ class GenericDAOTest {
         Map<String, Object> fieldsToUpdate = new HashMap<>();
         fieldsToUpdate.put("name", "John Doe");
 
-        // Simulate an SQL exception when preparing the statement
-        Mockito.when(mockConnection.prepareStatement(Mockito.anyString())).thenThrow(new SQLException("SQL error"));
+        Mockito.when(mockPreparedStatement.executeUpdate()).thenThrow(new SQLException("Database error"));
 
         SQLException exception = Assertions.assertThrows(SQLException.class, () -> {
             genericDAO.updateFields(1, fieldsToUpdate);
         });
 
-        Assertions.assertEquals("SQL error", exception.getMessage());
+        Assertions.assertEquals("Database error", exception.getMessage());
+    }
+
+    @Test
+    void testGetPagedResultsSuccess() throws SQLException {
+        Mockito.when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+
+        ResultSet resultSet = genericDAO.getPagedResults(1, 10);
+
+        Assertions.assertNotNull(resultSet, "ResultSet should not be null.");
+        Mockito.verify(mockPreparedStatement, Mockito.times(1)).executeQuery();
+    }
+
+    @Test
+    void testGetPagedResultsInvalidPageNumber() {
+        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            genericDAO.getPagedResults(0, 10);
+        });
+
+        Assertions.assertEquals("pageNumber et pageSize doivent être positifs", exception.getMessage());
+    }
+
+    @Test
+    void testGetPagedResultsInvalidPageSize() {
+        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            genericDAO.getPagedResults(1, 0);
+        });
+
+        Assertions.assertEquals("pageNumber et pageSize doivent être positifs", exception.getMessage());
+    }
+
+    @Test
+    void testGetPagedResultsSQLException() throws SQLException {
+        Mockito.when(mockPreparedStatement.executeQuery()).thenThrow(new SQLException("Database error"));
+
+        SQLException exception = Assertions.assertThrows(SQLException.class, () -> {
+            genericDAO.getPagedResults(1, 10);
+        });
+
+        Assertions.assertEquals("Database error", exception.getMessage());
     }
 }

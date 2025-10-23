@@ -3,30 +3,22 @@ package database.core;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.ResultSet;
 import java.util.Map;
 
 public abstract class GenericDAO<T> {
     protected Connection connection;
     protected String tableName;
 
-    // ... autres méthodes existantes ...
-
-    /**
-     * Met à jour les champs spécifiés d'un enregistrement dans la base de données
-     * @param id Identifiant de l'enregistrement à mettre à jour
-     * @param fieldsToUpdate Champs à mettre à jour avec leurs nouvelles valeurs
-     * @throws SQLException en cas d'erreur SQL
-     */
-    public void updateFields(Object id, Map<String, Object> fieldsToUpdate) throws SQLException {
+    // Méthode pour mettre à jour les champs spécifiés d'un enregistrement dans la base de données
+    public boolean updateFields(int id, Map<String, Object> fieldsToUpdate) throws SQLException {
         if (fieldsToUpdate == null || fieldsToUpdate.isEmpty()) {
-            throw new IllegalArgumentException("fieldsToUpdate ne doit pas être nul ou vide");
+            throw new IllegalArgumentException("fieldsToUpdate ne peut pas être vide");
         }
 
-        StringBuilder sql = new StringBuilder("UPDATE ").append(tableName).append(" SET ");
-        for (String fieldName : fieldsToUpdate.keySet()) {
-            sql.append(fieldName).append(" = ?, ");
-        }
-        sql.setLength(sql.length() - 2); // Supprime la dernière virgule
+        StringBuilder sql = new StringBuilder("UPDATE " + tableName + " SET ");
+        fieldsToUpdate.forEach((key, value) -> sql.append(key).append(" = ?, "));
+        sql.setLength(sql.length() - 2);  // Retrait de la dernière virgule
         sql.append(" WHERE id = ?");
 
         try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
@@ -34,10 +26,24 @@ public abstract class GenericDAO<T> {
             for (Object value : fieldsToUpdate.values()) {
                 stmt.setObject(index++, value);
             }
-            stmt.setObject(index, id);
-            stmt.executeUpdate();
+            stmt.setInt(index, id);
+            return stmt.executeUpdate() > 0;
         }
     }
-    
-    // ... autres méthodes existantes ...
+
+    // Méthode de pagination pour récupérer des pages de résultats
+    public ResultSet getPagedResults(int pageNumber, int pageSize) throws SQLException {
+        if (pageNumber < 1 || pageSize < 1) {
+            throw new IllegalArgumentException("pageNumber et pageSize doivent être positifs");
+        }
+
+        String sql = "SELECT * FROM " + tableName + " LIMIT ? OFFSET ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, pageSize);
+            stmt.setInt(2, (pageNumber - 1) * pageSize);
+            return stmt.executeQuery();
+        }
+    }
+
+    // Autres méthodes existantes...
 }
