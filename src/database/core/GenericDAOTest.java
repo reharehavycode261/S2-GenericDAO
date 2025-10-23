@@ -3,108 +3,126 @@ package database.core;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.mockito.Mockito;
+import org.mockito.ArgumentMatchers;
 
 import java.sql.*;
-import java.util.*;
+import java.util.List;
+import java.util.ArrayList;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class GenericDAOTest {
 
-    private Connection connection;
+    private Connection mockConnection;
+    private PreparedStatement mockPreparedStatement;
+    private ResultSet mockResultSet;
     private GenericDAO<Object> genericDAO;
-    private final String tableName = "test_table";
 
     @BeforeEach
     void setUp() throws SQLException {
-        connection = Mockito.mock(Connection.class);
-        genericDAO = new GenericDAO<Object>(connection, tableName) {
-            @Override
-            protected Object mapResultSetToEntity(ResultSet rs) throws SQLException {
-                return new Object(); // Simple stub for testing
-            }
-        };
+        mockConnection = Mockito.mock(Connection.class);
+        mockPreparedStatement = Mockito.mock(PreparedStatement.class);
+        mockResultSet = Mockito.mock(ResultSet.class);
+        genericDAO = new GenericDAO<>(mockConnection, "test_table");
+
+        when(mockConnection.prepareStatement(ArgumentMatchers.anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
     }
 
     @AfterEach
     void tearDown() throws SQLException {
-        connection.close();
+        mockResultSet.close();
+        mockPreparedStatement.close();
+        mockConnection.close();
     }
 
     @Test
-    void testFindAllPaginatedSuccess() throws SQLException {
+    void testFindAllReturnsEmptyListWhenNoData() throws SQLException {
         // Arrange
-        int page = 1;
-        int pageSize = 10;
-        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
-        ResultSet resultSet = Mockito.mock(ResultSet.class);
-
-        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(preparedStatement);
-        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
-        Mockito.when(resultSet.next()).thenReturn(true, false); // Simulate one row
+        when(mockResultSet.next()).thenReturn(false);
 
         // Act
-        List<Object> results = genericDAO.findAllPaginated(page, pageSize);
+        List<Object> result = genericDAO.findAll();
 
         // Assert
-        Assertions.assertNotNull(results, "Results should not be null");
-        Assertions.assertEquals(1, results.size(), "Results size should be 1");
+        assertNotNull(result, "The result should not be null");
+        assertTrue(result.isEmpty(), "The result list should be empty when no data is present");
     }
 
     @Test
-    void testFindAllPaginatedNoResults() throws SQLException {
+    void testFindAllReturnsDataWhenPresent() throws SQLException {
         // Arrange
-        int page = 1;
-        int pageSize = 10;
-        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
-        ResultSet resultSet = Mockito.mock(ResultSet.class);
-
-        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(preparedStatement);
-        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
-        Mockito.when(resultSet.next()).thenReturn(false); // Simulate no rows
+        when(mockResultSet.next()).thenReturn(true).thenReturn(false);
+        when(mockResultSet.getObject(anyInt())).thenReturn(new Object());
 
         // Act
-        List<Object> results = genericDAO.findAllPaginated(page, pageSize);
+        List<Object> result = genericDAO.findAll();
 
         // Assert
-        Assertions.assertNotNull(results, "Results should not be null");
-        Assertions.assertTrue(results.isEmpty(), "Results should be empty");
+        assertNotNull(result, "The result should not be null");
+        assertEquals(1, result.size(), "The result list should contain one item");
     }
 
     @Test
-    void testFindAllPaginatedSQLException() throws SQLException {
+    void testFindPageReturnsEmptyListWhenNoData() throws SQLException {
         // Arrange
-        int page = 1;
-        int pageSize = 10;
-        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenThrow(new SQLException("SQL error"));
+        when(mockResultSet.next()).thenReturn(false);
 
-        // Act & Assert
-        Assertions.assertThrows(SQLException.class, () -> {
-            genericDAO.findAllPaginated(page, pageSize);
-        }, "Should throw SQLException");
+        // Act
+        List<Object> result = genericDAO.findPage(0, 10);
+
+        // Assert
+        assertNotNull(result, "The result should not be null");
+        assertTrue(result.isEmpty(), "The result list should be empty when no data is present");
     }
 
     @Test
-    void testFindAllPaginatedNegativePageNumber() {
+    void testFindPageReturnsDataWhenPresent() throws SQLException {
         // Arrange
-        int page = -1;
-        int pageSize = 10;
+        when(mockResultSet.next()).thenReturn(true).thenReturn(false);
+        when(mockResultSet.getObject(anyInt())).thenReturn(new Object());
 
-        // Act & Assert
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.findAllPaginated(page, pageSize);
-        }, "Should throw IllegalArgumentException for negative page number");
+        // Act
+        List<Object> result = genericDAO.findPage(0, 10);
+
+        // Assert
+        assertNotNull(result, "The result should not be null");
+        assertEquals(1, result.size(), "The result list should contain one item");
     }
 
     @Test
-    void testFindAllPaginatedZeroPageSize() {
+    void testFindPageWithNegativeOffsetThrowsSQLException() {
+        // Act & Assert
+        assertThrows(SQLException.class, () -> genericDAO.findPage(-1, 10), 
+            "An SQLException should be thrown when offset is negative");
+    }
+
+    @Test
+    void testFindPageWithNegativeLimitThrowsSQLException() {
+        // Act & Assert
+        assertThrows(SQLException.class, () -> genericDAO.findPage(0, -10), 
+            "An SQLException should be thrown when limit is negative");
+    }
+
+    @Test
+    void testFindAllThrowsSQLExceptionWhenQueryFails() throws SQLException {
         // Arrange
-        int page = 1;
-        int pageSize = 0;
+        when(mockPreparedStatement.executeQuery()).thenThrow(new SQLException("Query failed"));
 
         // Act & Assert
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            genericDAO.findAllPaginated(page, pageSize);
-        }, "Should throw IllegalArgumentException for zero page size");
+        assertThrows(SQLException.class, () -> genericDAO.findAll(), 
+            "An SQLException should be thrown when the query execution fails");
+    }
+
+    @Test
+    void testFindPageThrowsSQLExceptionWhenQueryFails() throws SQLException {
+        // Arrange
+        when(mockPreparedStatement.executeQuery()).thenThrow(new SQLException("Query failed"));
+
+        // Act & Assert
+        assertThrows(SQLException.class, () -> genericDAO.findPage(0, 10), 
+            "An SQLException should be thrown when the query execution fails");
     }
 }
