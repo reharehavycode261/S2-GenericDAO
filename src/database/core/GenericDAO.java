@@ -1,43 +1,39 @@
 package database.core;
 
 import java.sql.*;
-import java.util.ArrayList;
 import java.util.List;
 
 public class GenericDAO<T> {
-    String id;
-    Connection connection;
-    String tableName;
+    private Connection connection;
+    private String tableName;
 
     public GenericDAO(Connection connection, String tableName) {
         this.connection = connection;
         this.tableName = tableName;
     }
 
+    // ... Autres méthodes existantes ...
+
     /**
-     * Récupère une page de résultats
-     * @param limit Le nombre d'enregistrements par page
-     * @param offset Le décalage à partir duquel récupérer les enregistrements
-     * @return La liste des enregistrements pour la page spécifiée
-     * @throws SQLException si une erreur SQL se produit
+     * Exécute une liste de commandes SQL en batch dans une seule transaction.
+     * @param sqlCommands La liste des commandes SQL à exécuter
+     * @throws SQLException si une erreur survient lors de l'exécution des commandes
      */
-    public List<T> getPaginatedResults(int limit, int offset) throws SQLException {
-        List<T> results = new ArrayList<>();
-        String sql = "SELECT * FROM " + tableName + " LIMIT ? OFFSET ?";
-        
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, limit);
-            stmt.setInt(2, offset);
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    // Conversion de l'enregistrement en objet de type T (simplifié ici)
-                    T entity = (T) rs.getObject(1);
-                    results.add(entity);
+    public void executeBatch(List<String> sqlCommands) throws SQLException {
+        try (Statement stmt = connection.createStatement()) {
+            connection.setAutoCommit(false);
+            try {
+                for (String sql : sqlCommands) {
+                    stmt.addBatch(sql);
                 }
+                stmt.executeBatch();
+                connection.commit();
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(true);
             }
         }
-        return results;
     }
-
-    // ... autres méthodes ...
 }
