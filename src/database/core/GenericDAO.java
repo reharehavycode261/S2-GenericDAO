@@ -7,40 +7,60 @@ public class GenericDAO<T> {
     private Connection connection;
     private String tableName;
 
-    // ... code existant ...
-
-    /**
-     * Met à jour les champs spécifiés pour un enregistrement identifié par sa clé primaire.
-     * @param id L'identifiant unique de l'enregistrement à mettre à jour.
-     * @param updates La liste des affectations représentant les colonnes et leurs nouvelles valeurs.
-     * @throws SQLException en cas d'erreur SQL.
-     */
-    public void updateFields(Object id, List<Affectation> updates) throws SQLException {
-        if (updates == null || updates.isEmpty()) {
-            throw new IllegalArgumentException("Les mises à jour ne peuvent pas être nulles ou vides.");
-        }
-
+    public GenericDAO(Connection connection, String tableName) {
+        this.connection = connection;
+        this.tableName = tableName;
+    }
+    
+    // Méthode pour mettre à jour les champs spécifiés
+    public void updateFields(Map<String, Object> fields, String whereClause) throws SQLException {
         StringBuilder sql = new StringBuilder("UPDATE " + tableName + " SET ");
-        List<Object> values = new ArrayList<>();
-
-        for (int i = 0; i < updates.size(); i++) {
-            Affectation affectation = updates.get(i);
-            sql.append(affectation.getColumn()).append(" = ?");
-            values.add(affectation.getValue());
-            if (i < updates.size() - 1) {
+        
+        int i = 0;
+        for (String column : fields.keySet()) {
+            sql.append(column).append(" = ?");
+            if (i < fields.size() - 1) {
                 sql.append(", ");
             }
+            i++;
         }
-        sql.append(" WHERE id = ?");
-        values.add(id);
-
+        
+        sql.append(" WHERE ").append(whereClause);
+        
         try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
-            for (int i = 0; i < values.size(); i++) {
-                stmt.setObject(i + 1, values.get(i));
+            int index = 1;
+            for (Object value : fields.values()) {
+                stmt.setObject(index, value);
+                index++;
             }
             stmt.executeUpdate();
         }
     }
     
-    // ... reste du code existant ...
+    // Méthode pour récupérer les résultats avec pagination
+    public List<T> getPaginatedResults(int pageSize, int pageNumber) throws SQLException {
+        String sql = "SELECT * FROM " + tableName + " LIMIT ? OFFSET ?";
+        
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            int offset = (pageNumber - 1) * pageSize;
+            stmt.setInt(1, pageSize);
+            stmt.setInt(2, offset);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                List<T> results = new ArrayList<>();
+                while (rs.next()) {
+                    // Assuming there's a method to parse a row into instance of T
+                    T item = parseRow(rs);
+                    results.add(item);
+                }
+                return results;
+            }
+        }
+    }
+    
+    // Exemple de méthode pour convertir un ResultSet en objet T
+    private T parseRow(ResultSet rs) throws SQLException {
+        // Logique de conversion du ResultSet en instance de T
+        return null; // Placeholder
+    }
 }
