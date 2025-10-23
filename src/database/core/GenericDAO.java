@@ -1,60 +1,75 @@
 package database.core;
 
-import java.sql.*;
-import java.util.*;
+import database.exception.SQL.AttributeMissingException;
+import database.exception.SQL.AttributeTypeNotExistingException;
+import database.exception.object.NotIdentifiedInDatabaseException;
 
-public class GenericDAO<T> {
-    private Connection connection;
-    private String tableName;
+import java.lang.reflect.InvocationTargetException;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.List;
 
-    public GenericDAO(Connection connection, String tableName) {
-        this.connection = connection;
-        this.tableName = tableName;
+public class GenericDAO {
+    String id;
+
+    public void createTable(DBConnection dbConnection) throws SQLException, AttributeTypeNotExistingException, AttributeMissingException {
+        dbConnection.getDatabase().createTable(dbConnection.getConnection(), this);
+        dbConnection.getDatabase().createSequence(dbConnection.getConnection(), getClass().getSimpleName()+"_seq");
     }
 
-    // Méthode existante pour obtenir tous les enregistrements
-    public List<T> findAll() throws SQLException {
-        String sql = "SELECT * FROM " + tableName;
-        try (PreparedStatement stmt = connection.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            return resultSetToList(rs);
-        }
+    public void save(DBConnection dbConnection, Sequence sequence) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        setId(dbConnection.getDatabase().getSequence(dbConnection.getConnection(), sequence));
+        dbConnection.getDatabase().insertObject(dbConnection.getConnection(), this);
     }
 
-    /**
-     * Méthode pour obtenir une page d'enregistrements.
-     * 
-     * @param offset Le décalage de départ pour la pagination.
-     * @param limit Le nombre maximum d'enregistrements à récupérer.
-     * @return Une liste d'enregistrements limités par l'offset et le limit.
-     * @throws SQLException en cas d'erreur SQL.
-     */
-    public List<T> findPage(int offset, int limit) throws SQLException {
-        String sql = "SELECT * FROM " + tableName + " LIMIT ? OFFSET ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, limit);
-            stmt.setInt(2, offset);
-            try (ResultSet rs = stmt.executeQuery()) {
-                return resultSetToList(rs);
-            }
-        }
+    public void save(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        Sequence sequence = new Sequence("", 10, getClass().getSimpleName());
+        save(dbConnection, sequence);
     }
 
-    // Méthode auxiliaire pour convertir un ResultSet en liste d'objets T
-    private List<T> resultSetToList(ResultSet rs) throws SQLException {
-        List<T> list = new ArrayList<>();
-        // Logic to convert ResultSet rows into objects of type T
-        // For demonstration purposes, this code is simplified and assumes a method to convert rows exists
-        while (rs.next()) {
-            T obj = convertRowToObject(rs);
-            list.add(obj);
-        }
-        return list;
+    void update(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        dbConnection.getDatabase().updateObject(dbConnection.getConnection(), condition, this);
     }
 
-    private T convertRowToObject(ResultSet rs) throws SQLException {
-        // Conversion logic should be implemented based on specific requirements
-        // This is just a placeholder for demonstration
-        return null;
+    public void update(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException, NotIdentifiedInDatabaseException {
+        update(dbConnection,"id='"+getId()+"'");
+    }
+
+    void delete(DBConnection dbConnection, String condition) throws SQLException {
+        dbConnection.getDatabase().delete(dbConnection.getConnection(), getClass().getSimpleName(), condition);
+    }
+
+    public void delete(DBConnection dbConnection) throws SQLException, NotIdentifiedInDatabaseException {
+        delete(dbConnection, "id='"+getId()+"'");
+    }
+
+    public List<Object> getAll(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return dbConnection.getDatabase().selectListObject(dbConnection.getConnection(), getClass(), condition);
+    }
+
+    public List<Object> getAll(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return getAll(dbConnection, "1=1");
+    }
+
+    public Object get(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return dbConnection.getDatabase().selectObject(dbConnection.getConnection(), getClass(), condition);
+    }
+
+    public Object getById(DBConnection dbConnection, String id) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return get(dbConnection, "id='"+id+"'");
+    }
+
+    public void historize(DBConnection dbConnection, String action) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        dbConnection.getDatabase().insert(dbConnection.getConnection(), "history", Timestamp.from(Instant.now()), getClass().getSimpleName(), action, toString());
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getId() throws NotIdentifiedInDatabaseException {
+        if(id == null) throw new NotIdentifiedInDatabaseException(this);
+        return id;
     }
 }
