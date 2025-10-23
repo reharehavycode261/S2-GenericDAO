@@ -14,46 +14,33 @@ public class GenericDAO<T> {
         this.tableName = tableName;
         this.type = type;
     }
-
-    // Méthode existante
-
-    /**
-     * Récupère une liste d'enregistrements avec pagination
-     * @param pageNumber Le numéro de la page à récupérer
-     * @param pageSize Le nombre d'éléments par page
-     * @return Une liste d'enregistrements
-     * @throws SQLException en cas d'erreur SQL
-     */
-    public List<T> findAllWithPagination(int pageNumber, int pageSize) throws SQLException {
-        List<T> results = new ArrayList<>();
+    
+    // Méthode de pagination
+    public List<T> findAllPaginated(int pageNumber, int pageSize) throws SQLException {
+        List<T> resultList = new ArrayList<>();
+        int offset = (pageNumber - 1) * pageSize;
         String sql = "SELECT * FROM " + tableName + " LIMIT ? OFFSET ?";
+        
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, pageSize);
-            stmt.setInt(2, (pageNumber - 1) * pageSize);
+            stmt.setInt(2, offset);
+            
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    T entity = type.getDeclaredConstructor().newInstance();
-                    // Supposons que nous avons une méthode pour remplir une entité à partir d'un ResultSet
-                    populateEntity(rs, entity);
-                    results.add(entity);
+                    // Supposons qu'une méthode de conversion de ResultSet à l'objet T existe
+                    T obj = resultSetToObject(rs);
+                    resultList.add(obj);
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-                throw new SQLException("Erreur lors de la création des instances", e);
             }
         }
-        return results;
+        
+        return resultList;
     }
 
-    /**
-     * Remplit l'entité à partir d'un ResultSet
-     * @param rs Le ResultSet avec les données
-     * @param entity L'entité à remplir
-     * @throws SQLException en cas d'erreur SQL
-     */
-    private void populateEntity(ResultSet rs, T entity) throws SQLException {
-        // Logique pour remplir les propriétés de l'entité T à partir du ResultSet
+    // Hypothetical method to convert a ResultSet to an object of type T
+    private T resultSetToObject(ResultSet rs) {
+        // This is a placeholder for the actual implementation
+        // depending on the specifics of how T should be constructed from rs
+        return null;
     }
-
-    // Autres méthodes existantes
 }
