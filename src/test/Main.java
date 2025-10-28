@@ -1,51 +1,87 @@
-import database.core.GenericDAO;
+package test;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.Scanner;
+import database.core.DBConnection;
+import database.core.Database;
+import database.provider.PostgreSQL;
+import test.Emp;
+import test.Plat;
+import test.PlatConso;
 
-public class Main<T> {
 
-    private final GenericDAO<T> genericDAO;
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Database database = new PostgreSQL("localhost", "5432", "dao", "", "");
+        DBConnection dbConnection = database.createConnection();
 
-    public Main(Connection connection) {
-        this.genericDAO = new GenericDAO<>(connection);
-    }
+        Emp emp = new Emp();
+        //emp.createTable(dbConnection);
 
-    public void displayPagedResults() {
-        Scanner scanner = new Scanner(System.in);
-        int page = 0;
-        int pageSize = 10;
-        List<T> results;
+        Plat plat = new Plat();
+        //plat.createTable(dbConnection);
 
-        do {
-            try {
-                results = genericDAO.findAllPaged(pageSize, page * pageSize);
-                System.out.println("Page " + (page + 1));
-                displayResults(results);
-                System.out.println("Enter 'n' for next page, 'p' for previous page, or 'q' to quit:");
-                String input = scanner.nextLine();
+        PlatConso platConso = new PlatConso();
+        //platConso.createTable(dbConnection);
 
-                if (input.equalsIgnoreCase("n")) {
-                    page++;
-                } else if (input.equalsIgnoreCase("p") && page > 0) {
-                    page--;
-                } else if (input.equalsIgnoreCase("q")) {
-                    break;
-                }
-            } catch (SQLException e) {
-                System.out.println("Error retrieving data: " + e.getMessage());
-                break;
-            }
-        } while (true);
+        Emp emp1 = new Emp("John", "Doe");
+        emp1.save(dbConnection);
+        Emp emp2 = new Emp("Jane", "Doe");
+        emp2.save(dbConnection);
+        Emp emp3 = new Emp("John", "Smith");
+        emp3.save(dbConnection);
 
-        scanner.close();
-    }
+        Plat plat1 = new Plat("Poulet");
+        plat1.save(dbConnection);
+        Plat plat2 = new Plat("Boeuf");
+        plat2.save(dbConnection);
+        Plat plat3 = new Plat("Poisson");
+        plat3.save(dbConnection);
 
-    private void displayResults(List<T> results) {
-        for (T result : results) {
-            System.out.println(result);
-        }
+
+        /* 1. Mi creer anle fonction sequence */
+        // database.createSequenceFunction(dbConnection.getConnection());
+
+
+        /* 2. Mi creer table */
+        // Student student = new Student();
+        // student.createTable(dbConnection);
+
+
+        /* 3. exemple */
+
+        // sauvegarder
+        // Student student = new Student("mendrika", 120, LocalDateTime.now(), LocalTime.now(), LocalDate.now());
+        // byte[] content = new byte[0];
+        // student.setFile(content);
+        // student.save(dbConnection);
+
+
+        /* get by id */
+        // Student student = new Student();
+        // student = (Student) student.getById(dbConnection, "0000000001");
+        // System.out.println(student.getBirthday());
+
+
+        /* supprimer dans la table */
+        // student.setId("0000000001");
+        // student.delete(dbConnection);
+
+
+        /* update dans la table */
+        // student.setId("sequence id no eto");
+        // student.update(dbConnection);
+
+
+        /* select */
+        // Student object = new Student();
+
+        /* raha objet ray no alaina */
+        // Student getOneObject = (Student) object.get(dbConnection, "condition no eto oh: mark>=10");
+
+        /* raha objet maromaro no alaina */
+        // object.getAll(dbConnection, "condition koa no eto"); // mamerina List<Object>
+        // object.getAll(dbConnection); // raha maka ny objet rehetra tsisy condition*/
+
+        dbConnection.commit();
+        dbConnection.close();
     }
 }
