@@ -5,9 +5,11 @@ Ce projet est une application Java qui se connecte à différents types de bases
 
 ## Structure du Projet
 Le projet est structuré en plusieurs packages principaux :
-- **database.core** : Contient les classes de base pour la gestion des connexions aux bases de données et les opérations courantes.
-- **database.provider** : Contient les implémentations spécifiques aux différents systèmes de gestion de bases de données (par exemple, PostgreSQL, Oracle).
-- **test** : Contient des classes et des tests pour démontrer le fonctionnement de l'application.
+- **database.core** : Contient les classes de base pour la gestion des connexions et des opérations sur les bases de données.
+- **database.dao** : Inclut les DAO pour la manipulation des objets de données.
+- **utils** : Fournit des utilitaires communs utilisés à travers le projet.
 
-## Installation
-1. **Cloner le dépôt** :
+## Fonctionnalités
+- Gestion des connexions vers différentes bases de données.
+- Opérations CRUD (Create, Read, Update, Delete) basiques.
+- Recherches avec filtres dynamiques.
