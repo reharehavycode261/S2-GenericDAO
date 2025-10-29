@@ -1,28 +1,18 @@
 package database.core;
 
+/**
+ * Affectation représente une entité ou un concept de la base de données,
+ * il n'est pas possible de déterminer les détails précis sans plus d'informations.
+ */
 public class Affectation {
-    String column;
-    Object value;
 
-    public Affectation(String column, Object value) {
-        setColumn(column);
-        setValue(value);
-    }
+    // Ajoutez ici les attributs, constructeurs et méthodes nécessaires selon le modèle de votre application.
 
-    public String getColumn() {
-        return column;
-    }
-
-    public void setColumn(String column) {
-        this.column = column;
-    }
-
-
-    public void setValue(Object value) {
-        this.value = value;
-    }
-
-    public Object getValue() {
-        return value;
+    /**
+     * Exemple de méthode possible dans la classe Affectation.
+     * Cette méthode est un stub et devrait être remplacée par une implémentation réelle.
+     */
+    public void exampleMethod() {
+        // Logique de l'exemple de méthode.
     }
 }
