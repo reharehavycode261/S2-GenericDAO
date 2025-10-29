@@ -1,0 +1,10 @@
+<dependencies>
+    <!-- Autres dépendances existantes -->
+
+    <!-- Ajout de la dépendance pour Jedis -->
+    <dependency>
+        <groupId>redis.clients</groupId>
+        <artifactId>jedis</artifactId>
+        <version>4.2.0</version>
+    </dependency>
+</dependencies>
