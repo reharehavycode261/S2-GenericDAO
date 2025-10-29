@@ -5,17 +5,15 @@ Ce projet est un système de gestion de base de données utilisant Java, axé su
 ## Fonctionnalités
 
 - **CRUD**: Créez, lisez, mettez à jour et supprimez des enregistrements dans la base de données.
-- **Compatibilité**: Supporte différents fournisseurs de bases de données, avec une implémentation actuelle pour PostgreSQL.
-- **Architecture modulaire**: Structure du code modulable pour faciliter l'intégration avec d'autres bases de données et fonctionnalités.
+- **Abstraction**: Interagissez avec la base de données sans vous soucier des spécificités SQL.
+- **Extensibilité**: Ajoutez facilement de nouveaux types de bases de données.
 
-## Installation
+## Configuration
 
-### Prérequis
+1. **Prérequis**: Assurez-vous d'avoir Java installé sur votre machine.
+2. **Dépendances**: Le projet utilise Maven pour la gestion des dépendances. Toutes les dépendances nécessaires sont spécifiées dans le fichier `pom.xml`.
+3. **Configuration de la base de données**: Mettez à jour le fichier de configuration `application.properties` avec les paramètres de connexion à votre base de données.
 
-- Java 8 ou supérieur
-- Maven 3.6 ou supérieur
-- Accès à un serveur de base de données PostgreSQL pour le déploiement et les tests
+## Exécution
 
-### Instructions
-
-1. Clonez le repository :
+Pour exécuter le projet, utilisez votre IDE préféré ou compilez et exécutez les classes Java en utilisant Maven ou la ligne de commande. Voici un exemple de commande pour exécuter l'application :
