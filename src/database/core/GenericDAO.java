@@ -8,65 +8,68 @@ import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class GenericDAO {
     String id;
-    
-    // Cache pour stocker les résultats de requêtes fréquemment consultées
-    private Map<String, List<Object>> cache = new HashMap<>();
 
-    // Méthode pour récupérer des données avec mise en cache
-    public List<Object> find(String query) throws SQLException {
-        if (cache.containsKey(query)) {
-            return cache.get(query);
-        }
-        
-        // Supposons que fetchDataByQuery est une méthode pour récupérer les données
-        List<Object> results = fetchDataByQuery(query);
-        cache.put(query, results);
-        return results;
-    }
-    
-    // Méthode hypothétique qui exécute la requête SQL et retourne les résultats
-    private List<Object> fetchDataByQuery(String query) throws SQLException {
-        // Logique pour exécuter la requête et obtenir les résultats
-        // Ce code devra être remplacé par le code actuel d'exécution de requête
-        // ...
-        return null; // à remplacer par les résultats réels
-    }
-    
-    // Méthode pour invalider le cache
-    public void invalidateCache() {
-        cache.clear();
+    public void createTable(DBConnection dbConnection) throws SQLException, AttributeTypeNotExistingException, AttributeMissingException {
+        dbConnection.getDatabase().createTable(dbConnection.getConnection(), this);
+        dbConnection.getDatabase().createSequence(dbConnection.getConnection(), getClass().getSimpleName()+"_seq");
     }
 
-    // Exemples d'opérations CRUD qui pourraient invalider le cache
-    public void insert(Object object) throws SQLException {
-        // Logique pour insérer l'objet dans la base de données
-        // ...
-        
-        // Invalider le cache après une insertion
-        invalidateCache();
-    }
-    
-    public void update(Object object) throws SQLException {
-        // Logique pour mettre à jour l'objet dans la base de données
-        // ...
-        
-        // Invalider le cache après une mise à jour
-        invalidateCache();
+    public void save(DBConnection dbConnection, Sequence sequence) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        setId(dbConnection.getDatabase().getSequence(dbConnection.getConnection(), sequence));
+        dbConnection.getDatabase().insertObject(dbConnection.getConnection(), this);
     }
 
-    public void delete(Object object) throws SQLException {
-        // Logique pour supprimer l'objet de la base de données
-        // ...
-        
-        // Invalider le cache après une suppression
-        invalidateCache();
+    public void save(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        Sequence sequence = new Sequence("", 10, getClass().getSimpleName());
+        save(dbConnection, sequence);
     }
 
-    // Autres méthodes existantes...
+    void update(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        dbConnection.getDatabase().updateObject(dbConnection.getConnection(), condition, this);
+    }
+
+    public void update(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException, NotIdentifiedInDatabaseException {
+        update(dbConnection,"id='"+getId()+"'");
+    }
+
+    void delete(DBConnection dbConnection, String condition) throws SQLException {
+        dbConnection.getDatabase().delete(dbConnection.getConnection(), getClass().getSimpleName(), condition);
+    }
+
+    public void delete(DBConnection dbConnection) throws SQLException, NotIdentifiedInDatabaseException {
+        delete(dbConnection, "id='"+getId()+"'");
+    }
+
+    public List<Object> getAll(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return dbConnection.getDatabase().selectListObject(dbConnection.getConnection(), getClass(), condition);
+    }
+
+    public List<Object> getAll(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return getAll(dbConnection, "1=1");
+    }
+
+    public Object get(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return dbConnection.getDatabase().selectObject(dbConnection.getConnection(), getClass(), condition);
+    }
+
+    public Object getById(DBConnection dbConnection, String id) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return get(dbConnection, "id='"+id+"'");
+    }
+
+    public void historize(DBConnection dbConnection, String action) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        dbConnection.getDatabase().insert(dbConnection.getConnection(), "history", Timestamp.from(Instant.now()), getClass().getSimpleName(), action, toString());
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getId() throws NotIdentifiedInDatabaseException {
+        if(id == null) throw new NotIdentifiedInDatabaseException(this);
+        return id;
+    }
 }
