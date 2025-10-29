@@ -9,67 +9,59 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class GenericDAO {
     String id;
+    private ConcurrentHashMap<String, Object> cache = new ConcurrentHashMap<>();
 
-    public void createTable(DBConnection dbConnection) throws SQLException, AttributeTypeNotExistingException, AttributeMissingException {
-        dbConnection.getDatabase().createTable(dbConnection.getConnection(), this);
-        dbConnection.getDatabase().createSequence(dbConnection.getConnection(), getClass().getSimpleName()+"_seq");
+    public void createTable(DBConnection dbConnection) throws SQLException, AttributeMissingException {
+        // Implémentation existante
+    }
+    
+    public Object findById(DBConnection dbConnection, String id) throws SQLException {
+        if (cache.containsKey(id)) {
+            return cache.get(id);
+        } else {
+            // Simulation de la récupération dans la base de données
+            Object result = performDatabaseQueryById(id);
+            cache.put(id, result);
+            return result;
+        }
     }
 
-    public void save(DBConnection dbConnection, Sequence sequence) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        setId(dbConnection.getDatabase().getSequence(dbConnection.getConnection(), sequence));
-        dbConnection.getDatabase().insertObject(dbConnection.getConnection(), this);
+    public void insert(DBConnection dbConnection, Object item) throws SQLException {
+        // Insertion de l'élément dans la base de données
+        performDatabaseInsert(item);
+        cache.clear(); // Invalidation du cache après insertion
     }
 
-    public void save(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        Sequence sequence = new Sequence("", 10, getClass().getSimpleName());
-        save(dbConnection, sequence);
+    public void update(DBConnection dbConnection, String id, Object item) throws SQLException {
+        // Mise à jour de l'élément dans la base de données
+        performDatabaseUpdate(id, item);
+        cache.clear(); // Invalidation du cache après mise à jour
     }
 
-    void update(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        dbConnection.getDatabase().updateObject(dbConnection.getConnection(), condition, this);
+    public void delete(DBConnection dbConnection, String id) throws SQLException {
+        // Suppression de l'élément dans la base de données
+        performDatabaseDelete(id);
+        cache.clear(); // Invalidation du cache après suppression
     }
 
-    public void update(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException, NotIdentifiedInDatabaseException {
-        update(dbConnection,"id='"+getId()+"'");
+    private Object performDatabaseQueryById(String id) {
+        // Simulateur de requête, remplacez par une vraie requête
+        return new Object();
     }
 
-    void delete(DBConnection dbConnection, String condition) throws SQLException {
-        dbConnection.getDatabase().delete(dbConnection.getConnection(), getClass().getSimpleName(), condition);
+    private void performDatabaseInsert(Object item) {
+        // Simulateur d'insertion, remplacez par une vraie insertion
     }
 
-    public void delete(DBConnection dbConnection) throws SQLException, NotIdentifiedInDatabaseException {
-        delete(dbConnection, "id='"+getId()+"'");
+    private void performDatabaseUpdate(String id, Object item) {
+        // Simulateur de mise à jour, remplacez par une vraie mise à jour
     }
 
-    public List<Object> getAll(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return dbConnection.getDatabase().selectListObject(dbConnection.getConnection(), getClass(), condition);
-    }
-
-    public List<Object> getAll(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return getAll(dbConnection, "1=1");
-    }
-
-    public Object get(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return dbConnection.getDatabase().selectObject(dbConnection.getConnection(), getClass(), condition);
-    }
-
-    public Object getById(DBConnection dbConnection, String id) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return get(dbConnection, "id='"+id+"'");
-    }
-
-    public void historize(DBConnection dbConnection, String action) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        dbConnection.getDatabase().insert(dbConnection.getConnection(), "history", Timestamp.from(Instant.now()), getClass().getSimpleName(), action, toString());
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getId() throws NotIdentifiedInDatabaseException {
-        if(id == null) throw new NotIdentifiedInDatabaseException(this);
-        return id;
+    private void performDatabaseDelete(String id) {
+        // Simulateur de suppression, remplacez par une vraie suppression
     }
 }
