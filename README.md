@@ -5,17 +5,10 @@ Ce projet est un système de gestion de base de données utilisant Java, axé su
 ## Fonctionnalités
 
 - **CRUD**: Créez, lisez, mettez à jour et supprimez des enregistrements dans la base de données.
-- **Compatibilité**: Supporte différents fournisseurs de bases de données, avec une implémentation actuelle pour PostgreSQL.
-- **Architecture modulaire**: Structure du code modulable pour faciliter l'intégration avec d'autres bases de données et fonctionnalités.
+- **Support Multi-SGBD**: Intégration avec plusieurs systèmes, actuellement supporté: PostgreSQL.
+- **Abstraction**: Fournit une interface Java simplifiée pour interagir avec la base de données.
+- **Tests Intégrés**: Environnement de test intégré pour valider les opérations sur la base de données.
 
 ## Installation
 
-### Prérequis
-
-- Java 8 ou supérieur
-- Maven 3.6 ou supérieur
-- Accès à un serveur de base de données PostgreSQL pour le déploiement et les tests
-
-### Instructions
-
-1. Clonez le repository :
+1. Clonez le repository:
