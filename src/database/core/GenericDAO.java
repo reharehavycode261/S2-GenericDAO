@@ -5,55 +5,71 @@ import database.exception.SQL.AttributeTypeNotExistingException;
 import database.exception.object.NotIdentifiedInDatabaseException;
 
 import java.lang.reflect.InvocationTargetException;
-import java.sql.*;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
-import java.util.ArrayList;
 
-public class GenericDAO<T> {
+public class GenericDAO {
     String id;
-    private Connection connection;
-    private String tableName;
-    
-    public GenericDAO(Connection connection, String tableName) {
-        this.connection = connection;
-        this.tableName = tableName;
+
+    public void createTable(DBConnection dbConnection) throws SQLException, AttributeTypeNotExistingException, AttributeMissingException {
+        dbConnection.getDatabase().createTable(dbConnection.getConnection(), this);
+        dbConnection.getDatabase().createSequence(dbConnection.getConnection(), getClass().getSimpleName()+"_seq");
     }
-    
-    // Autres méthodes existantes...
-    
-    /**
-     * Récupère une page de résultats à partir de la table
-     * @param limit Le nombre maximum de résultats à récupérer
-     * @param offset Le nombre de résultats à ignorer avant de commencer la récupération
-     * @return Une liste de résultats de la taille spécifiée
-     * @throws SQLException en cas d'erreur SQL
-     */
-    public List<T> getPage(int limit, int offset) throws SQLException, IllegalAccessException, InstantiationException {
-        List<T> results = new ArrayList<>();
-        String sql = "SELECT * FROM " + tableName + " LIMIT ? OFFSET ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, limit);
-            stmt.setInt(2, offset);
-            try (ResultSet rs = stmt.executeQuery()) {
-                ResultSetMetaData metadata = rs.getMetaData();
-                int columnCount = metadata.getColumnCount();
-                
-                while (rs.next()) {
-                    T instance = (T)Class.forName(tableName).newInstance(); // Assumes tableName matches class name
-                    for (int i = 1; i <= columnCount; i++) {
-                        String columnName = metadata.getColumnName(i);
-                        Object value = rs.getObject(i);
-                        
-                        // Assumes that setters are following the pattern setX(...)
-                        String setterName = "set" + columnName.substring(0, 1).toUpperCase() + columnName.substring(1);
-                        instance.getClass().getMethod(setterName, value.getClass()).invoke(instance, value);
-                    }
-                    results.add(instance);
-                }
-            }
-        } catch (ClassNotFoundException | InvocationTargetException | NoSuchMethodException e) {
-            throw new SQLException("Error processing result set", e);
-        }
-        return results;
+
+    public void save(DBConnection dbConnection, Sequence sequence) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        setId(dbConnection.getDatabase().getSequence(dbConnection.getConnection(), sequence));
+        dbConnection.getDatabase().insertObject(dbConnection.getConnection(), this);
+    }
+
+    public void save(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        Sequence sequence = new Sequence("", 10, getClass().getSimpleName());
+        save(dbConnection, sequence);
+    }
+
+    void update(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        dbConnection.getDatabase().updateObject(dbConnection.getConnection(), condition, this);
+    }
+
+    public void update(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException, NotIdentifiedInDatabaseException {
+        update(dbConnection,"id='"+getId()+"'");
+    }
+
+    void delete(DBConnection dbConnection, String condition) throws SQLException {
+        dbConnection.getDatabase().delete(dbConnection.getConnection(), getClass().getSimpleName(), condition);
+    }
+
+    public void delete(DBConnection dbConnection) throws SQLException, NotIdentifiedInDatabaseException {
+        delete(dbConnection, "id='"+getId()+"'");
+    }
+
+    public List<Object> getAll(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return dbConnection.getDatabase().selectListObject(dbConnection.getConnection(), getClass(), condition);
+    }
+
+    public List<Object> getAll(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return getAll(dbConnection, "1=1");
+    }
+
+    public Object get(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return dbConnection.getDatabase().selectObject(dbConnection.getConnection(), getClass(), condition);
+    }
+
+    public Object getById(DBConnection dbConnection, String id) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return get(dbConnection, "id='"+id+"'");
+    }
+
+    public void historize(DBConnection dbConnection, String action) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+        dbConnection.getDatabase().insert(dbConnection.getConnection(), "history", Timestamp.from(Instant.now()), getClass().getSimpleName(), action, toString());
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getId() throws NotIdentifiedInDatabaseException {
+        if(id == null) throw new NotIdentifiedInDatabaseException(this);
+        return id;
     }
 }
