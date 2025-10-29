@@ -4,72 +4,88 @@ import database.exception.SQL.AttributeMissingException;
 import database.exception.SQL.AttributeTypeNotExistingException;
 import database.exception.object.NotIdentifiedInDatabaseException;
 
+import redis.clients.jedis.Jedis;
+
 import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.List;
 
-public class GenericDAO {
-    String id;
+public class GenericDAO<T> {
+    private static final String REDIS_HOST = "localhost";
+    private static final int REDIS_PORT = 6379;
+    private Jedis jedis;
 
-    public void createTable(DBConnection dbConnection) throws SQLException, AttributeTypeNotExistingException, AttributeMissingException {
-        dbConnection.getDatabase().createTable(dbConnection.getConnection(), this);
-        dbConnection.getDatabase().createSequence(dbConnection.getConnection(), getClass().getSimpleName()+"_seq");
+    public GenericDAO() {
+        this.jedis = new Jedis(REDIS_HOST, REDIS_PORT);
+    }
+    
+    public void createTable(DBConnection dbConnection) throws SQLException, AttributeMissingException, AttributeTypeNotExistingException {
+        // Création de la logique du tableau
     }
 
-    public void save(DBConnection dbConnection, Sequence sequence) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        setId(dbConnection.getDatabase().getSequence(dbConnection.getConnection(), sequence));
-        dbConnection.getDatabase().insertObject(dbConnection.getConnection(), this);
+    public List<T> findAll(DBConnection dbConnection) throws SQLException {
+        String cacheKey = "all_data";
+        String cachedResult = jedis.get(cacheKey);
+        
+        if (cachedResult != null) {
+            // Logique pour convertir le résultat mis en cache en List<T>
+            return convertFromCache(cachedResult);
+        } else {
+            List<T> result = fetchDataFromDB();
+            jedis.set(cacheKey, convertToCache(result));
+            return result;
+        }
     }
 
-    public void save(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        Sequence sequence = new Sequence("", 10, getClass().getSimpleName());
-        save(dbConnection, sequence);
+    public T findById(DBConnection dbConnection, String id) throws SQLException, NotIdentifiedInDatabaseException {
+        String cacheKey = "data_" + id;
+        String cachedResult = jedis.get(cacheKey);
+
+        if (cachedResult != null) {
+            return convertFromCache(cachedResult);
+        } else {
+            T result = fetchByIdFromDB(id);
+            jedis.set(cacheKey, convertToCache(result));
+            return result;
+        }
     }
 
-    void update(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        dbConnection.getDatabase().updateObject(dbConnection.getConnection(), condition, this);
+    public void insert(DBConnection dbConnection, T obj) throws SQLException {
+        // Logique d'insertion dans la DB
+        invalidateCache();  // Invalide le cache après l'insertion
     }
 
-    public void update(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException, NotIdentifiedInDatabaseException {
-        update(dbConnection,"id='"+getId()+"'");
+    public void update(DBConnection dbConnection, T obj) throws SQLException {
+        // Logique de mise à jour dans la DB
+        invalidateCache();  // Invalide le cache après la mise à jour
     }
 
-    void delete(DBConnection dbConnection, String condition) throws SQLException {
-        dbConnection.getDatabase().delete(dbConnection.getConnection(), getClass().getSimpleName(), condition);
+    public void delete(DBConnection dbConnection, T obj) throws SQLException {
+        // Logique de suppression de la DB
+        invalidateCache();  // Invalide le cache après la suppression
     }
 
-    public void delete(DBConnection dbConnection) throws SQLException, NotIdentifiedInDatabaseException {
-        delete(dbConnection, "id='"+getId()+"'");
+    private void invalidateCache() {
+        jedis.flushDB();  // Invalide l'ensemble du cache
     }
 
-    public List<Object> getAll(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return dbConnection.getDatabase().selectListObject(dbConnection.getConnection(), getClass(), condition);
+    private List<T> fetchDataFromDB() {
+        // Dummy implementation for fetching from DB
+        return null;
     }
 
-    public List<Object> getAll(DBConnection dbConnection) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return getAll(dbConnection, "1=1");
+    private T fetchByIdFromDB(String id) {
+        // Dummy implementation for fetching by ID from DB
+        return null;
     }
 
-    public Object get(DBConnection dbConnection, String condition) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return dbConnection.getDatabase().selectObject(dbConnection.getConnection(), getClass(), condition);
+    private String convertToCache(Object obj) {
+        // Dummy serialization logic
+        return obj.toString();
     }
 
-    public Object getById(DBConnection dbConnection, String id) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        return get(dbConnection, "id='"+id+"'");
-    }
-
-    public void historize(DBConnection dbConnection, String action) throws SQLException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
-        dbConnection.getDatabase().insert(dbConnection.getConnection(), "history", Timestamp.from(Instant.now()), getClass().getSimpleName(), action, toString());
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getId() throws NotIdentifiedInDatabaseException {
-        if(id == null) throw new NotIdentifiedInDatabaseException(this);
-        return id;
+    private <T> T convertFromCache(String cachedData) {
+        // Dummy deserialization logic
+        return null;
     }
 }
