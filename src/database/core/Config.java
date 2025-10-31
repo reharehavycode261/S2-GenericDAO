@@ -1,18 +1,43 @@
 package database.core;
 
-import database.provider.Oracle;
-import database.provider.PostgreSQL;
-
-/** Quick configuration shortcut */
+/**
+ * La classe Config gère les configurations pour la connexion à la base de données.
+ * Elle stocke des paramètres tels que l'URL, le nom d'utilisateur et le mot de passe.
+ */
 public class Config {
-    static Database ORACLE_DB = new Oracle("10.211.55.3", "1521", "orcl", "scott", "tiger");
-    static Database PG_DB = new PostgreSQL("localhost", "5432", "postgres", "mendrika", "");
-
-    public static Database getOracleDb() {
-        return ORACLE_DB;
+    
+    // L'emplacement de la base de données.
+    private String url;
+    // Le nom d'utilisateur pour accéder à la base de données.
+    private String username;
+    // Le mot de passe associé à ce nom d'utilisateur.
+    private String password;
+    
+    /**
+     * Constructeur pour initialiser les paramètres de connexion.
+     * 
+     * @param url l'URL de connexion à la base de données.
+     * @param username le nom d'utilisateur.
+     * @param password le mot de passe.
+     */
+    public Config(String url, String username, String password) {
+        this.url = url;
+        this.username = username;
+        this.password = password;
     }
 
-    public static Database getPgDb() {
-        return PG_DB;
+    // Getters pour accéder aux informations de configuration.
+    public String getUrl() {
+        return url;
     }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    // Définir d'autres méthodes utiles pour la configuration si nécessaire.
 }
